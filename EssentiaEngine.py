@@ -46,24 +46,26 @@ class EssentiaEngine:
     	self.engine.flush()
     	return feats
 
-    # returns an array of feature vectors
-    def featureVectors(self, file, nump=False):
-        feats = self.extractFeatures(file)
+    # # returns an array of feature vectors
+    # def featureVectors(self, file, nump=False):
+    #     feats = self.extractFeatures(file)
         
-        flist =[]
-        fnames = []
-        for feat in feats:
-            if feat == 'MFCC':
-                for i in range(self.numMFCC):
-                    fnames.append('MFCC'+str(i+1))
-            else:
-                fnames.append(feat)
-            if not nump: flist.append(feats[feat].tolist())
-            else: flist.append(feats[feat])
-        flist = zip(*flist)
-        fvecs = []
-        for f in flist:
-            fvecs.append([j for i in f for j in i])
-    	#print len(fvecs[1])
-    	return fvecs, fnames
+    #     flist =[]
+    #     fnames = []
+    #     for feat in feats:
+    #         if feat == 'MFCC':
+    #             for i in range(self.numMFCC):
+    #                 fnames.append('MFCC'+str(i+1))
+    #         else:
+    #             fnames.append(feat)
+    #         if not nump: flist.append(feats[feat].tolist())
+    #         else: flist.append(feats[feat])
+    #     flist = zip(*flist)
+    #     fvecs = []
+    #     for f in flist:
+    #         fvecs.append([j for i in f for j in i])
+    # 	#print len(fvecs[1])
+    # 	return fvecs, fnames
+		
+	def featureVectors(self, file):
 		
