@@ -24,10 +24,10 @@ class BFClassifier(object):
     
     # TODO need to fix this?
     def predict(self, features):
-        return int(self.pipe.predict(features)[0])
+        return int(self.pipe.predict(features))
 
     # TODO need to fix this?
     def predictProb(self, features):
-        return self.pipe.predict_log_proba(features)[0]
+        return self.pipe.predict_log_proba(features)
 
     
