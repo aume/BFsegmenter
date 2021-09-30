@@ -1,12 +1,11 @@
 import essentia.standard as engine
 import essentia.utils as utils
-import numpy as np
-from extractor import getEverything
-import essentia
+import essentia 
 
 sampleRate = 44100
 frameSize = 1024
 hopSize = 512
+windowDuration = 0.5 # analysis window length in seconds
 
 # we start by instantiating the audio loader:
 file = 'BF200Corpus/background/aiff/5.aiff'
@@ -36,12 +35,18 @@ gfcc = engine.GFCC(sampleRate = sampleRate)
 rms = engine.RMS()
 # replay gain
 rgain = engine.ReplayGain(sampleRate = sampleRate)
-
-sc_coeffs = []
-sc_valleys = []
+# create pool for storage and aggregation
 pool = essentia.Pool()
+# frame counter used to detect end of window
+frameCount = 0
+# calculate the length of analysis frames
+frame_duration = float(frameSize / 2)/float(sampleRate)
+num_frames = int(windowDuration / frame_duration) # number frames in a window
 
 for frame in engine.FrameGenerator(audio, frameSize=frameSize, hopSize=hopSize, startFromZero=True, lastFrameToEndOfFile = True):
+    # replay gain TODO
+    pool.add('replay_gain', rgain(audio))
+
     # spectral contrast valleys
     frame_windowed = window(frame)
     frame_spectrum = spectrum(frame_windowed)
@@ -61,17 +66,31 @@ for frame in engine.FrameGenerator(audio, frameSize=frameSize, hopSize=hopSize, 
     # spectral RMS
     pool.add('lowlevel.spectral_rms', rms(frame_spectrum))
 
+    frameCount += 1
 
-# replay gain
-pool.add('replay_gain', rgain(audio))
+    # detect if we have traversed a whole window
+    if (frameCount == num_frames):
+        print('\nWINDOW')
+        # compute mean and variance of the frames
+        aggrPool = engine.PoolAggregator(defaultStats = [ 'mean', 'stdev' ])(pool)
+        correlationAttributes = {}
+        correlationAttributes['lowlevel.silence_rate.stdev'] = aggrPool['lowlevel.silence_rate.stdev']
+        correlationAttributes['lowlevel.spectral_contrast_valleys.mean.0'] = aggrPool['lowlevel.spectral_contrast_valleys.mean'][0]
+        correlationAttributes['replay_gain'] = pool['replay_gain'][0]
+        correlationAttributes['lowlevel.spectral_contrast_valleys.stdev.2'] = aggrPool['lowlevel.spectral_contrast_valleys.stdev'][2]
+        correlationAttributes['lowlevel.spectral_contrast_valleys.stdev.3'] = aggrPool['lowlevel.spectral_contrast_valleys.stdev'][3]
+        correlationAttributes['lowlevel.spectral_contrast_valleys.stdev.4'] = aggrPool['lowlevel.spectral_contrast_valleys.stdev'][4]
+        correlationAttributes['lowlevel.spectral_contrast_valleys.stdev.5'] = aggrPool['lowlevel.spectral_contrast_valleys.stdev'][5]
+        correlationAttributes['lowlevel.spectral_flux.mean'] = aggrPool['lowlevel.spectral_rms.mean']
+        correlationAttributes['lowlevel.gfcc.mean.0'] = aggrPool['lowlevel.gfcc.mean'][0]
+        correlationAttributes['lowlevel.spectral_rms.mean'] = aggrPool['lowlevel.spectral_rms.mean']
 
-# compute mean and variance of the frames
-aggrPool = engine.PoolAggregator(defaultStats = [ 'mean', 'stdev' ])(pool)
+        print(correlationAttributes)
+        # reset counter and clear pool
+        frameCount = 0
+        pool.clear()
+        aggrPool.clear()
 
-print(aggrPool.descriptorNames())
-print(aggrPool['lowlevel.spectral_contrast_valleys.mean'])
-print(aggrPool['lowlevel.silence_rate.stdev'])
-print(aggrPool['lowlevel.spectral_flux.mean'])
-print(aggrPool['lowlevel.gfcc.mean'])
-print(aggrPool['lowlevel.spectral_rms.mean'])
-print(pool['replay_gain'])
+
+
+
