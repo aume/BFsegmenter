@@ -27,3 +27,22 @@ def selectFeaturesToLists(self, featureNumbers, featuresFilename):
         for r in featureVectors:
             classList.append(r.pop())
     return featureVectors, classList
+
+def featuresToLists(featuresFilename):
+
+    with open(featuresFilename, 'r') as inp:
+        firstIteration = True
+        featureVectors = []
+        
+        for row in csv.reader(inp):
+            # extract features and their corresponding classes
+            featureVectors.append(list(row))
+
+        # format data for model
+        classList = []
+        featureNames = featureVectors.pop(0) # remove first element (table titles)
+
+        # remove the classes from the end of the list and append to their own
+        for r in featureVectors:
+            classList.append(r.pop())
+    return featureVectors, classList

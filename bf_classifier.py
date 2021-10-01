@@ -1,4 +1,4 @@
-from processing import selectFeaturesToLists
+from processing import selectFeaturesToLists, featuresToLists
 from sklearn import svm
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
@@ -10,11 +10,10 @@ class BFClassifier(object):
     """
 
     def __init__(self):
-        super(BFClassifier, self).__init__()
+        super().__init__()
         
-        # select desired features, create training data
-        CorrelationAttributeEval10 = [50, 629, 93, 638, 69, 637, 255, 73, 640, 639]
-        featureVectors, classList = selectFeaturesToLists(CorrelationAttributeEval10, 'extractedfeatures/features_BF200.csv')
+        # get the training data
+        featureVectors, classList = featuresToLists('datasets\manualfeatures_BF200.csv')
 
         # create model, scale the data using a pipeline 
         # computes the mean and standard deviation on the training set so as to be able to later re-apply the same transformation on the testing set
@@ -22,11 +21,9 @@ class BFClassifier(object):
         # train the model
         self.pipe.fit(featureVectors, classList) 
     
-    # TODO need to fix this?
     def predict(self, features):
         return int(self.pipe.predict(features))
 
-    # TODO need to fix this?
     def predictProb(self, features):
         return self.pipe.predict_log_proba(features)
 

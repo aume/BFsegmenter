@@ -1,8 +1,6 @@
 import sys
 import csv
 from math import sqrt, floor
-#from sklearn.datasets import load_svmlight_file
-#from sklearn import svm
 import bf_classifier
 import affect_predictor
 import numpy as np
@@ -24,7 +22,7 @@ class Segmenter:
     def __init__(self, training_data):
         
         # create the models TODO
-        #self.clf = bf_classifier.BFClassifier()
+        self.clf = bf_classifier.BFClassifier()
         #self.afp = affect_predictor.AffectPredict()
 
         # the yaafe engine for extracting features
@@ -52,9 +50,10 @@ class Segmenter:
     # returns # [file_path, [['type', start, end], [...], ['type'n, startn, endn]]]
     def regionsChunk(self, afile):        
         loader = engine.MonoLoader(filename = afile, sampleRate = self.sampleRate)
-
+        # and then we actually perform the loading:
+        audio = loader()
         # create algorithm instances
-        window = engine.Windowing(type = 'blackmanharris62', zeroPadding = 0, size = frameSize)
+        window = engine.Windowing(type = 'blackmanharris62', zeroPadding = 0, size = self.frameSize)
         spectral_contrast = engine.SpectralContrast(frameSize = self.frameSize,
                                                         sampleRate = self.sampleRate,
                                                         numberBands = 6,
@@ -76,6 +75,7 @@ class Segmenter:
         rgain = engine.ReplayGain(sampleRate = self.sampleRate)
         # create pool for storage and aggregation
         pool = essentia.Pool()
+
         # frame counter used to detect end of window
         frameCount_window = 0
         frameCount_file = 0
@@ -88,7 +88,7 @@ class Segmenter:
 
         processed = [] # storage for the classified segments
         
-        for frame in engine.FrameGenerator(audio, frameSize=frameSize, hopSize=hopSize, startFromZero=True, lastFrameToEndOfFile = True):
+        for frame in engine.FrameGenerator(audio, frameSize=self.frameSize, hopSize=self.hopSize, startFromZero=True, lastFrameToEndOfFile = True):
             # replay gain TODO
             pool.add('replay_gain', rgain(audio))
 
@@ -141,10 +141,11 @@ class Segmenter:
 
                 # typ = types[int(self.clf.predict(vect))] TODO
                 # prob = self.clf.predictProb(vect)
-                
+                print(features_dict)
                 start_time = float(frameCount_file*(self.frameSize/2))/float(self.sampleRate)
                 end_time = float((frameCount_file+numFrames_window)*(self.frameSize/2))/float(self.sampleRate)
                 # processed.append({'type':typ, 'probabilities':prob, 'start':start_time, 'end':end_time, 'feats':features_dict, 'count':1})
+        
 
         return processed
     
