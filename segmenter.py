@@ -73,9 +73,6 @@ class Segmenter:
         processed = [] # storage for the classified segments
         
         for frame in FrameGenerator(audio, frameSize=self.frameSize, hopSize=self.hopSize, startFromZero=True, lastFrameToEndOfFile = True):
-            # replay gain TODO
-            pool.add('replay_gain', self.engine.rgain(audio))
-
             # spectral contrast valleys
             frame_windowed = self.engine.window(frame)
             frame_spectrum = self.engine.spectrum(frame_windowed)
@@ -114,6 +111,9 @@ class Segmenter:
                 features_dict['lowlevel.spectral_flux.mean'] = aggrPool['lowlevel.spectral_rms.mean']
                 features_dict['lowlevel.gfcc.mean.0'] = aggrPool['lowlevel.gfcc.mean'][0]
                 features_dict['lowlevel.spectral_rms.mean'] = aggrPool['lowlevel.spectral_rms.mean']
+
+                # replay gain 
+                pool.add('replay_gain', self.engine.rgain(audio[frameCount_file : frameCount_file + frameCount_window]))
 
                 # reset counter and clear pool
                 frameCount_window = 0
