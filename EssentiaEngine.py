@@ -1,71 +1,58 @@
 import os
 import sys
 from math import sqrt
+import essentia.standard as engine
+import essentia.utils as utils
 
 
 class EssentiaEngine:
-    def __init__(self, srate, bsize):
-    	#FeaturePlan is a collection of features to extract, configured for a specific sample rate.
-    	fp = FeaturePlan(sample_rate=srate, resample=True)
-	
-    	blocksize = bsize
-    	step = bsize/2
-        self.numMFCC = 12
-    	fp.addFeature('MFCC: MFCC CepsNbCoeffs=%d blockSize=%d stepSize=%d' % (self.numMFCC,blocksize, step))
-    	fp.addFeature('Loudness: Loudness LMode=Total blockSize=%d stepSize=%d' % (blocksize, step))
-	
-    	fp.addFeature('PerceptualSharpness: PerceptualSharpness blockSize=%d stepSize=%d' % (blocksize, step))
-    	fp.addFeature('PerceptualSpread: PerceptualSpread blockSize=%d stepSize=%d' % (blocksize, step))
-    	#fp.addFeature('PerceptualFlatnes: PerceptualFlatness blockSize=%d stepSize=%d' % (blocksize, step))
-	
-    	fp.addFeature('SpectralFlux: SpectralFlux blockSize=%d stepSize=%d' % (blocksize, step))
-    	fp.addFeature('SpectralRolloff: SpectralRolloff blockSize=%d stepSize=%d' % (blocksize, step))
-    	fp.addFeature('SpectralSlope: SpectralSlope blockSize=%d stepSize=%d' % (blocksize, step))
-    	fp.addFeature('SpectralVariation: SpectralVariation blockSize=%d stepSize=%d' % (blocksize, step))
-    	fp.addFeature('ZCR: ZCR blockSize=%d stepSize=%d' % (blocksize, step))
-    	fp.addFeature('Energy: Energy blockSize=%d stepSize=%d' % (blocksize, step))
-    	#fp.addFeature('LPC: LPC blockSize=%d stepSize=%d' % (blocksize, step))
-    	#fp.addFeature('MagSpec: MagnitudeSpectrum blockSize=%d stepSize=%d' % (blocksize, step))
-	
-	
-	
-    	# A DataFlow object hold a directed acyclic graph of computational steps describing how to compute some audio features.
-    	df = fp.getDataFlow()
-    	# A Engine object is in charge of processing computations defined in a DataFlow object on given inputs
-    	self.engine = Engine()
-    	self.engine.load(df)
-	
-    	# go and process all our files in the dictionaries
-    	self.afp = AudioFileProcessor()
+	def __init__(self, sampleRate, frameSize):
+		self.sampleRate = sampleRate
+		self.frameSize = frameSize
 
+		# algorithms
+		self.window = engine.Windowing(
+		    type='blackmanharris62', zeroPadding=0, size=self.frameSize)
+		self.spectral_contrast = engine.SpectralContrast(frameSize=self.frameSize,
+                                                        sampleRate=self.sampleRate,
+                                                        numberBands=6,
+                                                        lowFrequencyBound=20,
+                                                        highFrequencyBound=11000,
+                                                        neighbourRatio=0.4,
+                                                        staticDistribution=0.15)
+		self.spectrum = engine.Spectrum(size=frameSize)
+		self.silence_rate = engine.SilenceRate(thresholds=[utils.db2lin(-60.0/2.0)])
+		self.spectral_flux = engine.Flux()
+		self.gfcc = engine.GFCC(sampleRate=self.sampleRate)
+		self.rms = engine.RMS()
+		self.rgain = engine.ReplayGain(sampleRate=self.sampleRate)
 
-    # runs the yaafe extraction
-    def extractFeatures(self, file):
-    	self.afp.processFile(self.engine, file) # extract features from an audio file using AudioFileProcessor
-    	feats = self.engine.readAllOutputs()
-    	self.engine.flush()
-    	return feats
+	# replay gain
+	def rgain(self, audio):
+		return self.rgain(audio)
+	
+	def window(self, frame):
+		return self.window(frame)
 
-    # # returns an array of feature vectors
-    # def featureVectors(self, file, nump=False):
-    #     feats = self.extractFeatures(file)
-        
-    #     flist =[]
-    #     fnames = []
-    #     for feat in feats:
-    #         if feat == 'MFCC':
-    #             for i in range(self.numMFCC):
-    #                 fnames.append('MFCC'+str(i+1))
-    #         else:
-    #             fnames.append(feat)
-    #         if not nump: flist.append(feats[feat].tolist())
-    #         else: flist.append(feats[feat])
-    #     flist = zip(*flist)
-    #     fvecs = []
-    #     for f in flist:
-    #         fvecs.append([j for i in f for j in i])
-    # 	#print len(fvecs[1])
-    # 	return fvecs, fnames
-		
-	def featureVectors(self, file):
+	def spectrum(self, windowedFrame):
+		return self.engine.spectrum(windowedFrame)
+
+	def spectral_contrast(self, frameSpectrum):
+		sc_coeff, sc_valley = self.spectral_contrast(frameSpectrum)
+		return sc_valley
+
+	def silence_rate(self, frame):
+		return self.silence_rate(frame)
+
+	def spectral_flux(self, frameSpectrum):
+		return self.spectral_flux(frameSpectrum)
+
+	# Gammatone-frequency cepstral coefficients
+	def gfcc(self, frameSpectrum):
+		bands, gfccs = self.gfcc(frameSpectrum)
+		return gfccs
+
+	def rms(self, frameSpectrum):
+		return self.rms(frameSpectrum)
+
 		

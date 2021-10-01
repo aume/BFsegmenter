@@ -1,12 +1,13 @@
 import sys
 import csv
 from math import sqrt, floor
+from EssentiaEngine import EssentiaEngine
 import bf_classifier
 import affect_predictor
 import numpy as np
 from scipy import ndimage
 
-import essentia.standard as engine
+from essentia.standard import MonoLoader, FrameGenerator, PoolAggregator
 import essentia.utils as utils
 import essentia 
 
@@ -31,7 +32,7 @@ class Segmenter:
         self.sampleRate = 44100 # sample rate 
         self.frameSize = 1024 # samples in each frame
         self.hopSize = 512
-        #self.yengine = yaafengine(self.sRate, self.nsamps)
+        self.engine = EssentiaEngine(self.sRate, self.nsamps)
 	
 	
 	# data will be [[file, file],... , [file, file]] TODO
@@ -49,36 +50,19 @@ class Segmenter:
     # audio file path
     # returns # [file_path, [['type', start, end], [...], ['type'n, startn, endn]]]
     def regionsChunk(self, afile):        
-        loader = engine.MonoLoader(filename = afile, sampleRate = self.sampleRate)
-        # and then we actually perform the loading:
+
+        # instantiate the loading algorithm
+        loader = MonoLoader(filename = afile, sampleRate = self.sampleRate)
+        # perform the loading
         audio = loader()
-        # create algorithm instances
-        window = engine.Windowing(type = 'blackmanharris62', zeroPadding = 0, size = self.frameSize)
-        spectral_contrast = engine.SpectralContrast(frameSize = self.frameSize,
-                                                        sampleRate = self.sampleRate,
-                                                        numberBands = 6,
-                                                        lowFrequencyBound = 20,
-                                                        highFrequencyBound = 11000,
-                                                        neighbourRatio = 0.4,
-                                                        staticDistribution = 0.15)
-        spectrum = engine.Spectrum(size = self.frameSize)
-        # silence rate 
-        thresholds=[utils.db2lin(val/2.0) for val in [-60.0]]
-        silence_rate = engine.SilenceRate( thresholds = thresholds )
-        # spectral flux
-        spectral_flux = engine.Flux()
-        # Gammatone-frequency cepstral coefficients
-        gfcc = engine.GFCC(sampleRate = self.sampleRate)
-        # spectral RMS
-        rms = engine.RMS()
-        # replay gain
-        rgain = engine.ReplayGain(sampleRate = self.sampleRate)
+
         # create pool for storage and aggregation
         pool = essentia.Pool()
 
         # frame counter used to detect end of window
         frameCount_window = 0
         frameCount_file = 0
+
         # calculate the length of analysis frames
         frame_duration = float(self.frameSize / 2)/float(self.sampleRate)
         numFrames_window = int(self.windowDuration / frame_duration) # number frames in a window
@@ -88,28 +72,28 @@ class Segmenter:
 
         processed = [] # storage for the classified segments
         
-        for frame in engine.FrameGenerator(audio, frameSize=self.frameSize, hopSize=self.hopSize, startFromZero=True, lastFrameToEndOfFile = True):
+        for frame in FrameGenerator(audio, frameSize=self.frameSize, hopSize=self.hopSize, startFromZero=True, lastFrameToEndOfFile = True):
             # replay gain TODO
-            pool.add('replay_gain', rgain(audio))
+            pool.add('replay_gain', self.engine.rgain(audio))
 
             # spectral contrast valleys
-            frame_windowed = window(frame)
-            frame_spectrum = spectrum(frame_windowed)
-            sc_coeff, sc_valley = spectral_contrast(frame_spectrum)
+            frame_windowed = self.engine.window(frame)
+            frame_spectrum = self.engine.spectrum(frame_windowed)
+            sc_valley = self.engine.spectral_contrast(frame_spectrum)
             pool.add('lowlevel.spectral_contrast_valleys', sc_valley)
 
             # silence rate
-            pool.add('lowlevel.silence_rate', silence_rate(frame))
+            pool.add('lowlevel.silence_rate', self.engine.silence_rate(frame))
 
             # spectral flux
-            pool.add('lowlevel.spectral_flux', spectral_flux(frame_spectrum))
+            pool.add('lowlevel.spectral_flux', self.engine.spectral_flux(frame_spectrum))
 
             # Gammatone-frequency cepstral coefficients
-            bands, gfccs = gfcc(frame_spectrum)
+            gfccs = self.engine.gfcc(frame_spectrum)
             pool.add('lowlevel.gfcc', gfccs)
 
             # spectral RMS
-            pool.add('lowlevel.spectral_rms', rms(frame_spectrum))
+            pool.add('lowlevel.spectral_rms', self.engine.rms(frame_spectrum))
 
             # increment counters
             frameCount_window += 1
@@ -118,7 +102,7 @@ class Segmenter:
             # detect if we have traversed a whole window
             if (frameCount_window == numFrames_window):
                 # compute mean and variance of the frames
-                aggrPool = engine.PoolAggregator(defaultStats = [ 'mean', 'stdev' ])(pool)
+                aggrPool = PoolAggregator(defaultStats = [ 'mean', 'stdev' ])(pool)
                 features_dict = {}
                 features_dict['lowlevel.silence_rate.stdev'] = aggrPool['lowlevel.silence_rate.stdev']
                 features_dict['lowlevel.spectral_contrast_valleys.mean.0'] = aggrPool['lowlevel.spectral_contrast_valleys.mean'][0]
@@ -139,12 +123,12 @@ class Segmenter:
                 # prepare feature values to predict the class
                 vect = features_dict.values()
 
-                # typ = types[int(self.clf.predict(vect))] TODO
-                # prob = self.clf.predictProb(vect)
+                type = types[int(self.clf.predict(vect))]
+                prob = self.clf.predictProb(vect)
                 print(features_dict)
                 start_time = float(frameCount_file*(self.frameSize/2))/float(self.sampleRate)
                 end_time = float((frameCount_file+numFrames_window)*(self.frameSize/2))/float(self.sampleRate)
-                # processed.append({'type':typ, 'probabilities':prob, 'start':start_time, 'end':end_time, 'feats':features_dict, 'count':1})
+                processed.append({'type':type, 'probabilities':prob, 'start':start_time, 'end':end_time, 'feats':features_dict, 'count':1})
         
 
         return processed
