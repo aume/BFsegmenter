@@ -1,9 +1,9 @@
 import sys
 import csv
 from math import sqrt, floor
-from EssentiaEngine import EssentiaEngine
+from essentia_engine import EssentiaEngine
 import bf_classifier
-import affect_predictor
+# import affect_predictor
 import numpy as np
 from scipy import ndimage
 
@@ -19,12 +19,12 @@ debug = False
 
 
 class Segmenter:
-    # initialize with training data
-    def __init__(self, training_data):
+    # initialize
+    def __init__(self):
         
-        # create the models TODO
+        # create the models 
         self.clf = bf_classifier.BFClassifier()
-        #self.afp = affect_predictor.AffectPredict()
+        #self.afp = affect_predictor.AffectPredict()TODO
 
         # the yaafe engine for extracting features
         # Our yaafe engine make sure that the features were extracted under the same conditions as the training data
@@ -32,7 +32,7 @@ class Segmenter:
         self.sampleRate = 44100 # sample rate 
         self.frameSize = 1024 # samples in each frame
         self.hopSize = 512
-        self.engine = EssentiaEngine(self.sRate, self.nsamps)
+        self.engine = EssentiaEngine(self.sampleRate, self.frameSize)
 	
 	
 	# data will be [[file, file],... , [file, file]] TODO
@@ -62,10 +62,14 @@ class Segmenter:
         # frame counter used to detect end of window
         frameCount_window = 0
         frameCount_file = 0
+        frameCount_file_prev = 0
 
         # calculate the length of analysis frames
         frame_duration = float(self.frameSize / 2)/float(self.sampleRate)
         numFrames_window = int(self.windowDuration / frame_duration) # number frames in a window
+
+        print(numFrames_window, ' frames in a window')
+        print('frame duration: ', frame_duration)
 
         # dictionary for class names from libsvm format
         types = {1:'back', 2:'fore', 3:'backfore'}
@@ -74,36 +78,41 @@ class Segmenter:
         
         for frame in FrameGenerator(audio, frameSize=self.frameSize, hopSize=self.hopSize, startFromZero=True, lastFrameToEndOfFile = True):
             # spectral contrast valleys
-            frame_windowed = self.engine.window(frame)
-            frame_spectrum = self.engine.spectrum(frame_windowed)
-            sc_valley = self.engine.spectral_contrast(frame_spectrum)
+            frame_windowed = self.engine.get_window(frame)
+            frame_spectrum = self.engine.get_spectrum(frame_windowed)
+            # print('spectrum: ', frame_spectrum)
+            sc_valley = self.engine.get_spectral_contrast(frame_spectrum)
             pool.add('lowlevel.spectral_contrast_valleys', sc_valley)
 
             # silence rate
-            pool.add('lowlevel.silence_rate', self.engine.silence_rate(frame))
+            pool.add('lowlevel.silence_rate', self.engine.get_silence_rate(frame))
 
             # spectral flux
-            pool.add('lowlevel.spectral_flux', self.engine.spectral_flux(frame_spectrum))
+            pool.add('lowlevel.spectral_flux', self.engine.get_spectral_flux(frame_spectrum))
 
             # Gammatone-frequency cepstral coefficients
-            gfccs = self.engine.gfcc(frame_spectrum)
+            gfccs = self.engine.get_gfcc(frame_spectrum)
             pool.add('lowlevel.gfcc', gfccs)
 
             # spectral RMS
-            pool.add('lowlevel.spectral_rms', self.engine.rms(frame_spectrum))
+            pool.add('lowlevel.spectral_rms', self.engine.get_rms(frame_spectrum))
 
             # increment counters
             frameCount_window += 1
             frameCount_file += 1
-
+            print(frameCount_file, ' : ', frameCount_window)
             # detect if we have traversed a whole window
             if (frameCount_window == numFrames_window):
+
+                # replay gain 
+                # print('getting replay gain from ', frameCount_file_prev * self.frameSize, ' to ', frameCount_file * self.frameSize)
+                replay_gain = self.engine.get_rgain(audio[frameCount_file_prev * self.frameSize : frameCount_file * self.frameSize])
+
                 # compute mean and variance of the frames
                 aggrPool = PoolAggregator(defaultStats = [ 'mean', 'stdev' ])(pool)
                 features_dict = {}
                 features_dict['lowlevel.silence_rate.stdev'] = aggrPool['lowlevel.silence_rate.stdev']
                 features_dict['lowlevel.spectral_contrast_valleys.mean.0'] = aggrPool['lowlevel.spectral_contrast_valleys.mean'][0]
-                features_dict['replay_gain'] = pool['replay_gain'][0]
                 features_dict['lowlevel.spectral_contrast_valleys.stdev.2'] = aggrPool['lowlevel.spectral_contrast_valleys.stdev'][2]
                 features_dict['lowlevel.spectral_contrast_valleys.stdev.3'] = aggrPool['lowlevel.spectral_contrast_valleys.stdev'][3]
                 features_dict['lowlevel.spectral_contrast_valleys.stdev.4'] = aggrPool['lowlevel.spectral_contrast_valleys.stdev'][4]
@@ -111,17 +120,16 @@ class Segmenter:
                 features_dict['lowlevel.spectral_flux.mean'] = aggrPool['lowlevel.spectral_rms.mean']
                 features_dict['lowlevel.gfcc.mean.0'] = aggrPool['lowlevel.gfcc.mean'][0]
                 features_dict['lowlevel.spectral_rms.mean'] = aggrPool['lowlevel.spectral_rms.mean']
-
-                # replay gain 
-                pool.add('replay_gain', self.engine.rgain(audio[frameCount_file : frameCount_file + frameCount_window]))
+                features_dict['replay_gain'] = replay_gain
 
                 # reset counter and clear pool
                 frameCount_window = 0
+                frameCount_file_prev = frameCount_file
                 pool.clear()
                 aggrPool.clear()
 
                 # prepare feature values to predict the class
-                vect = features_dict.values()
+                vect = list(features_dict.values())
 
                 type = types[int(self.clf.predict(vect))]
                 prob = self.clf.predictProb(vect)

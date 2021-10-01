@@ -26,33 +26,34 @@ class EssentiaEngine:
 		self.gfcc = engine.GFCC(sampleRate=self.sampleRate)
 		self.rms = engine.RMS()
 		self.rgain = engine.ReplayGain(sampleRate=self.sampleRate)
+		print('engine start')
 
 	# replay gain
-	def rgain(self, audio):
+	def get_rgain(self, audio):
 		return self.rgain(audio)
 	
-	def window(self, frame):
+	def get_window(self, frame):
 		return self.window(frame)
 
-	def spectrum(self, windowedFrame):
-		return self.engine.spectrum(windowedFrame)
+	def get_spectrum(self, windowedFrame):
+		return self.spectrum(windowedFrame)
 
-	def spectral_contrast(self, frameSpectrum):
+	def get_spectral_contrast(self, frameSpectrum):
 		sc_coeff, sc_valley = self.spectral_contrast(frameSpectrum)
 		return sc_valley
 
-	def silence_rate(self, frame):
+	def get_silence_rate(self, frame):
 		return self.silence_rate(frame)
 
-	def spectral_flux(self, frameSpectrum):
+	def get_spectral_flux(self, frameSpectrum):
 		return self.spectral_flux(frameSpectrum)
 
 	# Gammatone-frequency cepstral coefficients
-	def gfcc(self, frameSpectrum):
+	def get_gfcc(self, frameSpectrum):
 		bands, gfccs = self.gfcc(frameSpectrum)
 		return gfccs
 
-	def rms(self, frameSpectrum):
+	def get_rms(self, frameSpectrum):
 		return self.rms(frameSpectrum)
 
 		

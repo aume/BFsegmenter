@@ -51,6 +51,7 @@ for frame in engine.FrameGenerator(audio, frameSize=frameSize, hopSize=hopSize, 
     frame_windowed = window(frame)
     frame_spectrum = spectrum(frame_windowed)
     sc_coeff, sc_valley = spectral_contrast(frame_spectrum)
+    
     pool.add('lowlevel.spectral_contrast_valleys', sc_valley)
 
     # silence rate

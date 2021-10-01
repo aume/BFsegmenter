@@ -37,6 +37,7 @@ def featuresToLists(featuresFilename):
         for row in csv.reader(inp):
             # extract features and their corresponding classes
             featureVectors.append(list(row))
+            
 
         # format data for model
         classList = []
@@ -45,4 +46,5 @@ def featuresToLists(featuresFilename):
         # remove the classes from the end of the list and append to their own
         for r in featureVectors:
             classList.append(r.pop())
+            
     return featureVectors, classList
