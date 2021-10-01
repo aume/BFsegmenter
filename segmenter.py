@@ -25,7 +25,7 @@ class Segmenter:
 
         # the yaafe engine for extracting features
         # Our yaafe engine make sure that the features were extracted under the same conditions as the training data
-        self.windowDuration = 0.5  # analysis window length in seconds
+        self.windowDuration = 0.5 # analysis window length in seconds
         self.sampleRate = 44100  # sample rate
         self.frameSize = 1024  # samples in each frame
         self.hopSize = 512
@@ -57,7 +57,7 @@ class Segmenter:
         # frame counter used to detect end of window
         frameCount_window = 0
         frameCount_file = 0
-        frameCount_file_prev = 0
+        windowCount = 0
 
         # calculate the length of analysis frames
         frame_duration = float(self.frameSize / 2)/float(self.sampleRate)
@@ -66,6 +66,8 @@ class Segmenter:
 
         print(numFrames_window, ' frames in a window')
         print('frame duration: ', frame_duration)
+        print('audio len: ', len(audio))
+        print('number frames total: ', len(audio)/self.frameSize)
 
         # dictionary for class names from libsvm format
         types = {1: 'back', 2: 'fore', 3: 'backfore'}
@@ -73,46 +75,52 @@ class Segmenter:
         processed = []  # storage for the classified segments
 
         for frame in FrameGenerator(audio, frameSize=self.frameSize, hopSize=self.hopSize, startFromZero=True, lastFrameToEndOfFile=True):
+
             # spectral contrast valleys
             frame_windowed = self.engine.get_window(frame)
             frame_spectrum = self.engine.get_spectrum(frame_windowed)
-            # print('spectrum: ', frame_spectrum)
             sc_valley = self.engine.get_spectral_contrast(frame_spectrum)
             pool.add('lowlevel.spectral_contrast_valleys', sc_valley)
-
             # silence rate
             pool.add('lowlevel.silence_rate',
                      self.engine.get_silence_rate(frame))
-
             # spectral flux
             pool.add('lowlevel.spectral_flux',
                      self.engine.get_spectral_flux(frame_spectrum))
-
             # Gammatone-frequency cepstral coefficients
             gfccs = self.engine.get_gfcc(frame_spectrum)
             pool.add('lowlevel.gfcc', gfccs)
-
             # spectral RMS
             pool.add('lowlevel.spectral_rms',
                      self.engine.get_rms(frame_spectrum))
-
             # increment counters
             frameCount_window += 1
             frameCount_file += 1
-            print(frameCount_file, ' : ', frameCount_window)
+
             # detect if we have traversed a whole window
             if (frameCount_window == numFrames_window):
+                windowCount +=1
 
-                # replay gain
-                # print('getting replay gain from ', frameCount_file_prev * self.frameSize, ' to ', frameCount_file * self.frameSize)
-                replay_gain = self.engine.get_rgain(
-                    audio[frameCount_file_prev * self.frameSize: frameCount_file * self.frameSize])
+                # replay gain is not frame level like the others, get it for the whole window
+                try:
+                    window_start = int((windowCount - 1) * self.windowDuration * self.sampleRate)
+                    window_end =  int(windowCount * self.windowDuration * self.sampleRate)
+                    print('getting replay gain from ', window_start, ' to ',window_end )
+                    replay_gain = self.engine.get_rgain(
+                        audio[ window_start : window_end])
+                    replay_gain_previous = replay_gain
+                except:
+                    # if window is too small to get replay gain, use the value from the previous window
+                    print('window size to small for replay gain algorithm, using previous value')
+                    replay_gain = replay_gain_previous
 
-                # compute mean and variance of the frames
+
+                # compute mean and variance of the frames using the pool aggregator, assign to dict in same order as training
                 aggrPool = PoolAggregator(defaultStats=['mean', 'stdev'])(pool)
                 features_dict = {}
                 features_dict['lowlevel.silence_rate.stdev'] = aggrPool['lowlevel.silence_rate.stdev']
                 features_dict['lowlevel.spectral_contrast_valleys.mean.0'] = aggrPool['lowlevel.spectral_contrast_valleys.mean'][0]
+                features_dict['replay_gain'] = replay_gain
                 features_dict['lowlevel.spectral_contrast_valleys.stdev.2'] = aggrPool['lowlevel.spectral_contrast_valleys.stdev'][2]
                 features_dict['lowlevel.spectral_contrast_valleys.stdev.3'] = aggrPool['lowlevel.spectral_contrast_valleys.stdev'][3]
                 features_dict['lowlevel.spectral_contrast_valleys.stdev.4'] = aggrPool['lowlevel.spectral_contrast_valleys.stdev'][4]
@@ -120,27 +128,24 @@ class Segmenter:
                 features_dict['lowlevel.spectral_flux.mean'] = aggrPool['lowlevel.spectral_rms.mean']
                 features_dict['lowlevel.gfcc.mean.0'] = aggrPool['lowlevel.gfcc.mean'][0]
                 features_dict['lowlevel.spectral_rms.mean'] = aggrPool['lowlevel.spectral_rms.mean']
-                features_dict['replay_gain'] = replay_gain
 
                 # reset counter and clear pool
                 frameCount_window = 0
-                frameCount_file_prev = frameCount_file
                 pool.clear()
                 aggrPool.clear()
 
                 # prepare feature values to predict the class
                 vect = list(features_dict.values())
                 type = self.clf.predict(vect)[0]
-                print(type)
                 prob = self.clf.predictProb(vect)
-                print(features_dict)
+                print(vect)
                 start_time = float(
                     frameCount_file*(self.frameSize/2))/float(self.sampleRate)
                 end_time = float((frameCount_file+numFrames_window)
                                  * (self.frameSize/2))/float(self.sampleRate)
                 processed.append({'type': type, 'probabilities': prob, 'start': start_time,
                                  'end': end_time, 'feats': features_dict, 'count': 1})
-
+                print('\n', processed[-1])
         return processed
 
     def smoothProbabilities(self, processed, winSize=3):

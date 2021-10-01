@@ -20,6 +20,7 @@ class BFClassifier(object):
         self.pipe = make_pipeline(StandardScaler(), svm.SVC(kernel = 'rbf', probability = True, cache_size = 1000))
         # train the model
         self.pipe.fit(featureVectors, classList) 
+        print('model fit')
 
     
     def predict(self, features):
