@@ -20,12 +20,12 @@ class BFClassifier(object):
         self.pipe = make_pipeline(StandardScaler(), svm.SVC(kernel = 'rbf', probability = True, cache_size = 1000))
         # train the model
         self.pipe.fit(featureVectors, classList) 
-        print('fvs', featureVectors[0])
+
     
     def predict(self, features):
-        return int(self.pipe.predict(features))
+        return self.pipe.predict([features])
 
     def predictProb(self, features):
-        return self.pipe.predict_log_proba(features)
+        return self.pipe.predict_log_proba([features])
 
     
