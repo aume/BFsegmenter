@@ -23,24 +23,26 @@ class Segmenter:
         self.clf = bf_classifier.BFClassifier()
         # self.afp = affect_predictor.AffectPredict()TODO
 
-        # the yaafe engine for extracting features
-        # Our yaafe engine make sure that the features were extracted under the same conditions as the training data
         self.windowDuration = 0.5 # analysis window length in seconds
         self.sampleRate = 44100  # sample rate
         self.frameSize = 1024  # samples in each frame
         self.hopSize = 512
+
+        # the essentia engine make sure that the features were extracted under the same conditions as the training data
         self.engine = EssentiaEngine(self.sampleRate, self.frameSize)
 
-        # data will be [[file, file],... , [file, file]] TODO
+        # data will be [[file, file],... , [file, file]]
         #returns [ [file, [regions]], ..., [file, [regions]] ]
-    # def process_data(self, data):
-    #     out_data = []
-    #     for result in data:
-    #         result_data = []
-    #         for file in result:
-    #             result_data.append(self.extract(file)) # adds [file_path, [['type', start, end], [...], ['type'n, startn, endn]]]
-    #         out_data.append(result_data) # adds [[file,[regions]],file,[regions]]]
-    # 	return out_data
+    def process_data(self, data):
+        out_data = []
+        for result in data:
+            result_data = []
+            for file in result:
+                # adds [file_path, [['type', start, end], [...], ['type'n, startn, endn]]]
+                result_data.append(self.extract(file))
+            # adds [[file,[regions]],file,[regions]]]
+            out_data.append(result_data)
+        return out_data
 
     # audio file path
     # returns # [file_path, [['type', start, end], [...], ['type'n, startn, endn]]]
@@ -168,64 +170,12 @@ class Segmenter:
             processed[i]['type'] = labels[index]
         return processed
 
-    # #
-    # # a simple k-depth filtering
-    # #
-
-    def simple_k(self, processed, k_depth):
-        # conjunction (renaming segments) giving preference to foreground
-        start = 0
-        while start < len(processed):
-            # If we have a fg
-            # print start
-            if processed[start]['type'] != '':  # don't join background sounds
-                trigger_type = processed[start]['type']  # log type
-
-                for i in range(start+k_depth, start-1, -1):
-                    if i < len(processed):
-                        if processed[i]['type'] == trigger_type:
-                            for j in range(start, i, 1):
-                                processed[j]['type'] = trigger_type
-                                start = i
-                                pass
-            start += 1
-
-        if debug:
-            print('Finished k-depth mrking')
-        return processed
-
-    # #
-    # # a simple median filtering
-    # #
-
-    def max_posterior(self, processed, m_span=7):
-        import operator
-        medWin = m_span  # int(floor(m_span/2))
-        filtered = []
-        for i in range(0, len(processed), 1):
-            # print(i,'old',processed[i]['type'])
-            # if processed[i]['type'] != processed[i+1]['type']:
-            labels = {'back': 0, 'fore': 0, 'backfore': 0}
-            for j in range(max(0, i-medWin), min(i+medWin, len(processed)), 1):
-                k = processed[j]['type']
-                labels[k] = labels.setdefault(k, 0) + 1
-            maxlabel = max(labels.iteritems(), key=operator.itemgetter(1))[0]
-            filtered.append(maxlabel)
-
-        for i in range(0, len(processed), 1):
-            #print (i,'old',processed[i]['type'])
-            if processed[i]['type'] != filtered[i]:
-                processed[i]['type'] = filtered[i]
-                #print (i,'change',processed[i]['type'])
-
-        return processed
 
     def conjunction(self, processed):
         # Here we join up any same labelled adjacent regions
         for i in range(1, len(processed), 1):
             if processed[i]['type'] == processed[i-1]['type']:  # if its the same
-                processed[i]['start'] = processed[i -
-                                                  1]['start']  # update the start time
+                processed[i]['start'] = processed[i - 1]['start']  # update the start time
                 processed[i]['feats'] = self.sumFeatureDics(
                     processed[i]['feats'], processed[i-1]['feats'])
                 processed[i]['count'] += processed[i-1]['count']
