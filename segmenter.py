@@ -140,15 +140,82 @@ class Segmenter:
                 vect = list(features_dict.values())
                 type = self.clf.predict(vect)[0]
                 prob = self.clf.predictProb(vect)
-                print(vect)
+                # print(vect)
                 start_time = float(
                     frameCount_file*(self.frameSize/2))/float(self.sampleRate)
                 end_time = float((frameCount_file+numFrames_window)
                                  * (self.frameSize/2))/float(self.sampleRate)
                 processed.append({'type': type, 'probabilities': prob, 'start': start_time,
                                  'end': end_time, 'feats': features_dict, 'count': 1})
-                print('\n', processed[-1])
+                # print('\n', processed[-1])
         return processed
+
+    # K Means clustering - renaming segments giving preference to foreground (default val of 3)
+    def Clustering(self, processed, k_depth = 3):
+        start = 0
+        while start < len(processed):
+            # If we have a fg
+            if processed[start]['type'] == 'foreground':
+                log_a = log_b =start
+                # Go through k deep and save the idx of furthest fg within k
+                for i in range(start+1, start+k_depth+1, 1):
+                    if i < len(processed):
+                        categ = processed[i]['type']
+                        if categ == 'foreground':
+                            log_b = i
+                # now we overwrite the types between the two detected foregrounds if we found one
+                if log_b - log_a > 0:
+                    for j in range(log_a, log_b+1,1): 
+                            processed[j]['type'] = 'foreground'
+                    start = log_b
+                # we didnt find a fg withing the k window
+                # continue and skip remeinder of the window since theres no fg within it
+                else: 
+                    start += k_depth
+            # not fg, move to next element
+            else:
+                start += 1
+        return processed
+
+    def conjunction(self, processed):
+        # Here we join up any same labelled adjacent regions
+        for i in range(1, len(processed), 1):
+            if processed[i]['type'] == processed[i-1]['type']:  # if its the same
+                processed[i]['start'] = processed[i - 1]['start']  # update the start time
+                processed[i]['feats'] = self.sumFeatureDics(
+                    processed[i]['feats'], processed[i-1]['feats'])
+                processed[i]['count'] += processed[i-1]['count']
+                processed[i-1]['type'] = 'none'  # nullify the previos segment
+            else:
+                pass
+        if debug:
+            print('Finished conjunction')
+        return self.finalize_regions(processed)
+
+    def finalize_regions(self, processed):
+        if debug:
+            print('Begin Logging')
+        file_data = []  # [afile] # [file_path, [['type', start, end], [...], ['type'n, startn, endn]]]
+        region_data = []
+        for i in processed:
+            if i['type'] != 'none':
+                temp = {}
+                temp['type'] = i['type']
+                temp['duration'] = i['end'] - i['start']  # duration
+                temp['start'] = i['start']
+                temp['end'] = i['end']
+                temp['feats'] = self.avgDicItems(i['feats'], i['count'])
+                f = temp['feats']
+                vect = [f['Loudness_mean'], f['Loudness_std'], f['MFCC1_mean'], f['MFCC1_std'],
+                        f['MFCC2_mean'], f['MFCC2_std'], f['MFCC3_mean'], f['MFCC3_std']]
+                temp['valence'] = self.afp.predict_valence(vect)
+                temp['arousal'] = self.afp.predict_arousal(vect)
+                region_data.append(temp)
+                file_data.append(region_data)
+        if (debug):
+            print('End Logging')
+        # print 'length of file data is ', len(file_data)
+        return region_data
 
     def smoothProbabilities(self, processed, winSize=3):
         a = np.array(processed[0]['probabilities'])
@@ -169,48 +236,6 @@ class Segmenter:
             index, value = max(enumerate(a[i]), key=operator.itemgetter(1))
             processed[i]['type'] = labels[index]
         return processed
-
-
-    def conjunction(self, processed):
-        # Here we join up any same labelled adjacent regions
-        for i in range(1, len(processed), 1):
-            if processed[i]['type'] == processed[i-1]['type']:  # if its the same
-                processed[i]['start'] = processed[i - 1]['start']  # update the start time
-                processed[i]['feats'] = self.sumFeatureDics(
-                    processed[i]['feats'], processed[i-1]['feats'])
-                processed[i]['count'] += processed[i-1]['count']
-                processed[i-1]['type'] = 'none'  # nullify the previos segment
-                # print processed[i]['type']
-            else:
-                pass
-        if debug:
-            print('Finished conjunction')
-        return self.finalize_regions(processed)
-
-    def finalize_regions(self, processed):
-        if debug:
-            print('Begin Logging')
-        file_data = []  # [afile] # [file_path, [['type', start, end], [...], ['type'n, startn, endn]]]
-        region_data = []
-        for i in processed:
-            if i['type'] is not 'none':
-                temp = {}
-                temp['type'] = i['type']
-                temp['duration'] = i['end'] - i['start']  # duration
-                temp['start'] = i['start']
-                temp['end'] = i['end']
-                temp['feats'] = self.avgDicItems(i['feats'], i['count'])
-                f = temp['feats']
-                vect = [f['Loudness_mean'], f['Loudness_std'], f['MFCC1_mean'], f['MFCC1_std'],
-                        f['MFCC2_mean'], f['MFCC2_std'], f['MFCC3_mean'], f['MFCC3_std']]
-                temp['valence'] = self.afp.predict_valence(vect)
-                temp['arousal'] = self.afp.predict_arousal(vect)
-                region_data.append(temp)
-                file_data.append(region_data)
-        if (debug):
-            print('End Logging')
-        # print 'length of file data is ', len(file_data)
-        return region_data
 
     def avgDicItems(self, D, a):
         result = {}
