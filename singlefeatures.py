@@ -69,28 +69,26 @@ for frame in engine.FrameGenerator(audio, frameSize=frameSize, hopSize=hopSize, 
 
     frameCount += 1
 
-    # detect if we have traversed a whole window
-    if (frameCount == num_frames):
-        print('\nWINDOW')
-        # compute mean and variance of the frames
-        aggrPool = engine.PoolAggregator(defaultStats = [ 'mean', 'stdev' ])(pool)
-        correlationAttributes = {}
-        correlationAttributes['lowlevel.silence_rate.stdev'] = aggrPool['lowlevel.silence_rate.stdev']
-        correlationAttributes['lowlevel.spectral_contrast_valleys.mean.0'] = aggrPool['lowlevel.spectral_contrast_valleys.mean'][0]
-        correlationAttributes['replay_gain'] = pool['replay_gain'][0]
-        correlationAttributes['lowlevel.spectral_contrast_valleys.stdev.2'] = aggrPool['lowlevel.spectral_contrast_valleys.stdev'][2]
-        correlationAttributes['lowlevel.spectral_contrast_valleys.stdev.3'] = aggrPool['lowlevel.spectral_contrast_valleys.stdev'][3]
-        correlationAttributes['lowlevel.spectral_contrast_valleys.stdev.4'] = aggrPool['lowlevel.spectral_contrast_valleys.stdev'][4]
-        correlationAttributes['lowlevel.spectral_contrast_valleys.stdev.5'] = aggrPool['lowlevel.spectral_contrast_valleys.stdev'][5]
-        correlationAttributes['lowlevel.spectral_flux.mean'] = aggrPool['lowlevel.spectral_rms.mean']
-        correlationAttributes['lowlevel.gfcc.mean.0'] = aggrPool['lowlevel.gfcc.mean'][0]
-        correlationAttributes['lowlevel.spectral_rms.mean'] = aggrPool['lowlevel.spectral_rms.mean']
 
-        print(correlationAttributes)
-        # reset counter and clear pool
-        frameCount = 0
-        pool.clear()
-        aggrPool.clear()
+# compute mean and variance of the frames
+aggrPool = engine.PoolAggregator(defaultStats = [ 'mean', 'stdev' ])(pool)
+correlationAttributes = {}
+correlationAttributes['lowlevel.silence_rate.stdev'] = aggrPool['lowlevel.silence_rate.stdev']
+correlationAttributes['lowlevel.spectral_contrast_valleys.mean.0'] = aggrPool['lowlevel.spectral_contrast_valleys.mean'][0]
+correlationAttributes['replay_gain'] = pool['replay_gain'][0]
+correlationAttributes['lowlevel.spectral_contrast_valleys.stdev.2'] = aggrPool['lowlevel.spectral_contrast_valleys.stdev'][2]
+correlationAttributes['lowlevel.spectral_contrast_valleys.stdev.3'] = aggrPool['lowlevel.spectral_contrast_valleys.stdev'][3]
+correlationAttributes['lowlevel.spectral_contrast_valleys.stdev.4'] = aggrPool['lowlevel.spectral_contrast_valleys.stdev'][4]
+correlationAttributes['lowlevel.spectral_contrast_valleys.stdev.5'] = aggrPool['lowlevel.spectral_contrast_valleys.stdev'][5]
+correlationAttributes['lowlevel.spectral_flux.mean'] = aggrPool['lowlevel.spectral_rms.mean']
+correlationAttributes['lowlevel.gfcc.mean.0'] = aggrPool['lowlevel.gfcc.mean'][0]
+correlationAttributes['lowlevel.spectral_rms.mean'] = aggrPool['lowlevel.spectral_rms.mean']
+
+print(correlationAttributes)
+# reset counter and clear pool
+frameCount = 0
+pool.clear()
+aggrPool.clear()
 
 
 
