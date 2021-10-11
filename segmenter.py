@@ -14,6 +14,9 @@ import essentia
 
 debug = False
 
+#TODO
+# smooth probabilities?
+# processfile?
 
 class Segmenter:
     # initialize
@@ -31,22 +34,16 @@ class Segmenter:
         # the essentia engine make sure that the features were extracted under the same conditions as the training data
         self.engine = EssentiaEngine(self.sampleRate, self.frameSize)
 
-        # data will be [[file, file],... , [file, file]]
-        #returns [ [file, [regions]], ..., [file, [regions]] ]
-    def process_data(self, data):
-        out_data = []
-        for result in data:
-            result_data = []
-            for file in result:
-                # adds [file_path, [['type', start, end], [...], ['type'n, startn, endn]]]
-                result_data.append(self.extract(file))
-            # adds [[file,[regions]],file,[regions]]]
-            out_data.append(result_data)
-        return out_data
+    # run the segmentation
+    def segment(self, afile):
+        rawRegions = self.extractRegions(afile)
+        clusteredRegions = self.Clustering(rawRegions)
+        finalRegions = self.conjunction(clusteredRegions)
+        return finalRegions
 
     # audio file path
     # returns # [file_path, [['type', start, end], [...], ['type'n, startn, endn]]]
-    def regionsChunk(self, afile):
+    def extractRegions(self, afile):
 
         # instantiate the loading algorithm
         loader = MonoLoader(filename=afile, sampleRate=self.sampleRate)
@@ -107,9 +104,7 @@ class Segmenter:
                 try:
                     window_start = int((windowCount - 1) * self.windowDuration * self.sampleRate)
                     window_end =  int(windowCount * self.windowDuration * self.sampleRate)
-                    print('getting replay gain from ', window_start, ' to ',window_end )
-                    replay_gain = self.engine.get_rgain(
-                        audio[ window_start : window_end])
+                    replay_gain = self.engine.get_rgain(audio[ window_start : window_end])
                     replay_gain_previous = replay_gain
                 except:
                     # if window is too small to get replay gain, use the value from the previous window
@@ -188,7 +183,6 @@ class Segmenter:
                 pass
         if debug:
             print('Finished conjunction')
-        # return processed
         return self.finalize_regions(processed)
 
     def finalize_regions(self, processed):
@@ -208,26 +202,6 @@ class Segmenter:
                 # temp['arousal'] = self.afp.predict_arousal(vect) TODO
                 region_data.append(temp)
         return region_data
-
-    def smoothProbabilities(self, processed, winSize=3):
-        a = np.array(processed[0]['probabilities'])
-
-        for i in range(0, len(processed), 1):
-            # print processed[i]['probabilities']
-            a = np.vstack((a, processed[i]['probabilities']))
-        # print a
-
-        for i in range(a.shape[1]):
-            a[:, i] = ndimage.filters.median_filter(a[:, i], size=winSize)
-        # print a
-
-        import operator
-        labels = ['back', 'fore', 'backfore']
-        for i in range(0, len(processed), 1):
-            processed[i]['probabilities'] = a[i]
-            index, value = max(enumerate(a[i]), key=operator.itemgetter(1))
-            processed[i]['type'] = labels[index]
-        return processed
 
     def avgDicItems(self, D, a):
         result = {}
