@@ -8,10 +8,16 @@ windowData = s1.regionsChunk(file)
 
 print('\nbefore')
 for item in windowData:
-    print(item['type'])
+    print('\n',item)
 
 filteredWindowData = s1.Clustering(windowData)
 
-print('\nafter')
+print('\nCluster')
 for item in filteredWindowData:
-    print(item['type'])
+    print('\n',item)
+
+conjunctData = s1.conjunction(filteredWindowData)
+
+print('\nConjuction')
+for item in conjunctData:
+    print(item)

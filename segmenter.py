@@ -141,10 +141,8 @@ class Segmenter:
                 type = self.clf.predict(vect)[0]
                 prob = self.clf.predictProb(vect)
                 # print(vect)
-                start_time = float(
-                    frameCount_file*(self.frameSize/2))/float(self.sampleRate)
-                end_time = float((frameCount_file+numFrames_window)
-                                 * (self.frameSize/2))/float(self.sampleRate)
+                start_time = float((frameCount_file - numFrames_window))*(self.frameSize/2)/float(self.sampleRate)
+                end_time = float(frameCount_file*(self.frameSize/2))/float(self.sampleRate)
                 processed.append({'type': type, 'probabilities': prob, 'start': start_time,
                                  'end': end_time, 'feats': features_dict, 'count': 1})
                 # print('\n', processed[-1])
@@ -190,12 +188,10 @@ class Segmenter:
                 pass
         if debug:
             print('Finished conjunction')
+        # return processed
         return self.finalize_regions(processed)
 
     def finalize_regions(self, processed):
-        if debug:
-            print('Begin Logging')
-        file_data = []  # [afile] # [file_path, [['type', start, end], [...], ['type'n, startn, endn]]]
         region_data = []
         for i in processed:
             if i['type'] != 'none':
@@ -206,15 +202,11 @@ class Segmenter:
                 temp['end'] = i['end']
                 temp['feats'] = self.avgDicItems(i['feats'], i['count'])
                 f = temp['feats']
-                vect = [f['Loudness_mean'], f['Loudness_std'], f['MFCC1_mean'], f['MFCC1_std'],
-                        f['MFCC2_mean'], f['MFCC2_std'], f['MFCC3_mean'], f['MFCC3_std']]
-                temp['valence'] = self.afp.predict_valence(vect)
-                temp['arousal'] = self.afp.predict_arousal(vect)
+                vect = [f['lowlevel.silence_rate.stdev'], f['lowlevel.spectral_contrast_valleys.mean.0'], f['replay_gain'], f['lowlevel.spectral_contrast_valleys.stdev.2'],
+                        f['lowlevel.spectral_contrast_valleys.stdev.3'], f['lowlevel.spectral_contrast_valleys.stdev.4'], f['lowlevel.spectral_contrast_valleys.stdev.5'], f['lowlevel.spectral_flux.mean'], f['lowlevel.gfcc.mean.0'], f['lowlevel.spectral_rms.mean']]
+                # temp['valence'] = self.afp.predict_valence(vect) TODO
+                # temp['arousal'] = self.afp.predict_arousal(vect) TODO
                 region_data.append(temp)
-                file_data.append(region_data)
-        if (debug):
-            print('End Logging')
-        # print 'length of file data is ', len(file_data)
         return region_data
 
     def smoothProbabilities(self, processed, winSize=3):
