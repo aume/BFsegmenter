@@ -1,7 +1,7 @@
 from math import sqrt, floor
 from essentia_engine import EssentiaEngine
 import bf_classifier
-# import affect_predictor
+import affect_predictor
 import numpy as np
 from scipy import ndimage
 
@@ -24,7 +24,7 @@ class Segmenter:
 
         # create the models
         self.clf = bf_classifier.BFClassifier()
-        # self.afp = affect_predictor.AffectPredict()TODO
+        self.afp = affect_predictor.AffectPredict()
 
         self.windowDuration = 0.5 # analysis window length in seconds
         self.sampleRate = 44100  # sample rate
@@ -198,8 +198,8 @@ class Segmenter:
                 f = temp['feats']
                 vect = [f['lowlevel.silence_rate.stdev'], f['lowlevel.spectral_contrast_valleys.mean.0'], f['replay_gain'], f['lowlevel.spectral_contrast_valleys.stdev.2'],
                         f['lowlevel.spectral_contrast_valleys.stdev.3'], f['lowlevel.spectral_contrast_valleys.stdev.4'], f['lowlevel.spectral_contrast_valleys.stdev.5'], f['lowlevel.spectral_flux.mean'], f['lowlevel.gfcc.mean.0'], f['lowlevel.spectral_rms.mean']]
-                # temp['valence'] = self.afp.predict_valence(vect) TODO
-                # temp['arousal'] = self.afp.predict_arousal(vect) TODO
+                # temp['valence'] = self.afp.predict_valence(vect)
+                # temp['arousal'] = self.afp.predict_arousal(vect)
                 region_data.append(temp)
         return region_data
 
