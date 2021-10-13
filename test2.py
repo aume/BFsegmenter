@@ -5,7 +5,7 @@ f = open('datasets/valencearousal_training.csv','r')
 
 header = f.readline().split(',')
 
-training_data = np.loadtxt(f)
+training_data = np.loadtxt(f, delimiter=',')
 
 arousal_data = training_data[:,9:10] # first two colums are valence and arousal
 valence_data = training_data[:,10:11] # first two colums are valence and arousal
