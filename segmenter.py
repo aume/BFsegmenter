@@ -198,8 +198,8 @@ class Segmenter:
                 f = temp['feats']
                 vect = [f['lowlevel.silence_rate.stdev'], f['lowlevel.spectral_contrast_valleys.mean.0'], f['replay_gain'], f['lowlevel.spectral_contrast_valleys.stdev.2'],
                         f['lowlevel.spectral_contrast_valleys.stdev.3'], f['lowlevel.spectral_contrast_valleys.stdev.4'], f['lowlevel.spectral_contrast_valleys.stdev.5'], f['lowlevel.spectral_flux.mean'], f['lowlevel.gfcc.mean.0'], f['lowlevel.spectral_rms.mean']]
-                # temp['valence'] = self.afp.predict_valence(vect)
-                # temp['arousal'] = self.afp.predict_arousal(vect)
+                temp['valence'] = self.afp.predict_valence(vect)
+                temp['arousal'] = self.afp.predict_arousal(vect)
                 region_data.append(temp)
         return region_data
 
