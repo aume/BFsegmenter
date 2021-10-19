@@ -13,7 +13,7 @@ class BFClassifier(object):
         super().__init__()
         
         # get the training data
-        featureVectors, classList = featuresToLists('datasets/manualfeatures_BF200.csv')
+        featureVectors, classList, descriptors = featuresToLists('datasets/manualfeatures_BF200.csv')
 
         # create model, scale the data using a pipeline 
         # computes the mean and standard deviation on the training set so as to be able to later re-apply the same transformation on the testing set
@@ -21,7 +21,6 @@ class BFClassifier(object):
         # train the model
         self.pipe.fit(featureVectors, classList) 
         print('model fit')
-
     
     def predict(self, features):
         return self.pipe.predict([features])

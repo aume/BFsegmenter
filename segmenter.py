@@ -80,22 +80,24 @@ class Segmenter:
             frame_spectrum = self.engine.get_spectrum(frame_windowed)
             sc_valley = self.engine.get_spectral_contrast(frame_spectrum)
             pool.add('lowlevel.spectral_contrast_valleys', sc_valley)
+
             # silence rate
-            pool.add('lowlevel.silence_rate',
-                     self.engine.get_silence_rate(frame))
-            # silence rate
-            pool.add('lowlevel.silence_rate_60dB', self.engine.is_silent_threshold(frame, -60))
-            pool.add('lowlevel.silence_rate_30dB', self.engine.is_silent_threshold(frame, -30))
-            pool.add('lowlevel.silence_rate_20dB', self.engine.is_silent_threshold(frame, -20))
+            pool.add('lowlevel.silence_rate_60dB', self.engine.get_silence_rate(frame, -60))
+            pool.add('lowlevel.silence_rate_30dB', self.engine.get_silence_rate(frame, -30))
+            pool.add('lowlevel.silence_rate_20dB', self.engine.get_silence_rate(frame, -20))
+
             # spectral flux
             pool.add('lowlevel.spectral_flux',
                      self.engine.get_spectral_flux(frame_spectrum))
+
             # Gammatone-frequency cepstral coefficients
             gfccs = self.engine.get_gfcc(frame_spectrum)
             pool.add('lowlevel.gfcc', gfccs)
+
             # spectral RMS
             pool.add('lowlevel.spectral_rms',
                      self.engine.get_rms(frame_spectrum))
+
             # mfcc
             melBands, mfccs = self.engine.get_mfcc(frame_spectrum)
             pool.add('lowlevel.mfcc', mfccs)
@@ -119,13 +121,14 @@ class Segmenter:
                     # if window is too small to get replay gain, use the value from the previous window
                     print('window size to small for replay gain algorithm, using previous value')
                     replay_gain = replay_gain_previous
-
+                pool.add('metadata.audio_properties.replay_gain', replay_gain)
 
                 # compute mean and variance of the frames using the pool aggregator, assign to dict in same order as training
                 aggrPool = PoolAggregator(defaultStats=['mean', 'stdev'])(pool)
                 features_dict = {}
 
                 descriptorList = aggrPool.descriptorNames()
+
                 for descriptor in descriptorList:
                     value = aggrPool[descriptor]
                     if(str(type(value)) == "<class 'numpy.ndarray'>"):
@@ -135,17 +138,6 @@ class Segmenter:
                     else:
                         features_dict[descriptor] = aggrPool[descriptor]
 
-                # features_dict['lowlevel.silence_rate.stdev'] = aggrPool['lowlevel.silence_rate.stdev']
-                # features_dict['lowlevel.spectral_contrast_valleys.mean.0'] = aggrPool['lowlevel.spectral_contrast_valleys.mean'][0]
-                # features_dict['lowlevel.spectral_contrast_valleys.stdev.2'] = aggrPool['lowlevel.spectral_contrast_valleys.stdev'][2]
-                # features_dict['lowlevel.spectral_contrast_valleys.stdev.3'] = aggrPool['lowlevel.spectral_contrast_valleys.stdev'][3]
-                # features_dict['lowlevel.spectral_contrast_valleys.stdev.4'] = aggrPool['lowlevel.spectral_contrast_valleys.stdev'][4]
-                # features_dict['lowlevel.spectral_contrast_valleys.stdev.5'] = aggrPool['lowlevel.spectral_contrast_valleys.stdev'][5]
-                # features_dict['lowlevel.spectral_flux.mean'] = aggrPool['lowlevel.spectral_rms.mean']
-                # features_dict['lowlevel.gfcc.mean.0'] = aggrPool['lowlevel.gfcc.mean'][0]
-                # features_dict['lowlevel.spectral_rms.mean'] = aggrPool['lowlevel.spectral_rms.mean']
-                # features_dict['replay_gain'] = replay_gain
-
                 # reset counter and clear pool
                 frameCount_window = 0
                 pool.clear()
@@ -153,14 +145,14 @@ class Segmenter:
 
                 # prepare feature values to predict the class
                 vect = list(features_dict.values())
-                type = self.clf.predict(vect)[0]
+
+                classification = self.clf.predict(vect)[0]
                 prob = self.clf.predictProb(vect)
-                # print(vect)
+
                 start_time = float((frameCount_file - numFrames_window))*(self.frameSize/2)/float(self.sampleRate)
                 end_time = float(frameCount_file*(self.frameSize/2))/float(self.sampleRate)
-                processed.append({'type': type, 'probabilities': prob, 'start': start_time,
+                processed.append({'type': classification, 'probabilities': prob, 'start': start_time,
                                  'end': end_time, 'feats': features_dict, 'count': 1})
-                # print('\n', processed[-1])
         return processed
 
     # K Means clustering - renaming segments giving preference to foreground (default val of 3)
@@ -201,8 +193,8 @@ class Segmenter:
                 processed[i-1]['type'] = 'none'  # nullify the previos segment
             else:
                 pass
-        if debug:
-            print('Finished conjunction')
+            
+        print('Finished conjunction')
         return self.finalize_regions(processed)
 
     def finalize_regions(self, processed):
@@ -216,10 +208,9 @@ class Segmenter:
                 temp['end'] = i['end']
                 temp['feats'] = self.avgDicItems(i['feats'], i['count'])
                 f = temp['feats']
-                vect = [f['lowlevel.silence_rate.stdev'], f['lowlevel.spectral_contrast_valleys.mean.0'], f['replay_gain'], f['lowlevel.spectral_contrast_valleys.stdev.2'],
-                        f['lowlevel.spectral_contrast_valleys.stdev.3'], f['lowlevel.spectral_contrast_valleys.stdev.4'], f['lowlevel.spectral_contrast_valleys.stdev.5'], f['lowlevel.spectral_flux.mean'], f['lowlevel.gfcc.mean.0'], f['lowlevel.spectral_rms.mean']]
-                temp['valence'] = self.afp.predict_valence(vect)
-                temp['arousal'] = self.afp.predict_arousal(vect)
+                vect = f.keys()
+                # temp['valence'] = self.afp.predict_valence(vect)
+                # temp['arousal'] = self.afp.predict_arousal(vect)
                 region_data.append(temp)
         return region_data
 

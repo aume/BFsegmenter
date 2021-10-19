@@ -42,9 +42,10 @@ def featuresToLists(featuresFilename):
         # format data for model
         classList = []
         featureNames = featureVectors.pop(0) # remove first element (table titles)
+        featureNames.pop(-1)
 
         # remove the classes from the end of the list and append to their own
         for r in featureVectors:
             classList.append(r.pop())
             
-    return featureVectors, classList
+    return featureVectors, classList, featureNames
