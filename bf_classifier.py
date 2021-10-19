@@ -17,7 +17,7 @@ class BFClassifier(object):
 
         # create model, scale the data using a pipeline 
         # computes the mean and standard deviation on the training set so as to be able to later re-apply the same transformation on the testing set
-        self.pipe = make_pipeline(StandardScaler(), svm.SVC(kernel = 'rbf', probability = True, cache_size = 1000))
+        self.pipe = make_pipeline(StandardScaler(), svm.SVC(kernel = 'linear', probability = True, cache_size = 1000))
         # train the model
         self.pipe.fit(featureVectors, classList) 
         print('model fit')
