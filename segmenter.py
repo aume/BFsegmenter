@@ -83,6 +83,10 @@ class Segmenter:
             # silence rate
             pool.add('lowlevel.silence_rate',
                      self.engine.get_silence_rate(frame))
+            # silence rate
+            pool.add('lowlevel.silence_rate_60dB', self.engine.is_silent_threshold(frame, -60))
+            pool.add('lowlevel.silence_rate_30dB', self.engine.is_silent_threshold(frame, -30))
+            pool.add('lowlevel.silence_rate_20dB', self.engine.is_silent_threshold(frame, -20))
             # spectral flux
             pool.add('lowlevel.spectral_flux',
                      self.engine.get_spectral_flux(frame_spectrum))
@@ -92,6 +96,11 @@ class Segmenter:
             # spectral RMS
             pool.add('lowlevel.spectral_rms',
                      self.engine.get_rms(frame_spectrum))
+            # mfcc
+            melBands, mfccs = self.engine.get_mfcc(frame_spectrum)
+            pool.add('lowlevel.mfcc', mfccs)
+            pool.add('lowlevel.melbands', melBands)
+
             # increment counters
             frameCount_window += 1
             frameCount_file += 1
@@ -115,16 +124,27 @@ class Segmenter:
                 # compute mean and variance of the frames using the pool aggregator, assign to dict in same order as training
                 aggrPool = PoolAggregator(defaultStats=['mean', 'stdev'])(pool)
                 features_dict = {}
-                features_dict['lowlevel.silence_rate.stdev'] = aggrPool['lowlevel.silence_rate.stdev']
-                features_dict['lowlevel.spectral_contrast_valleys.mean.0'] = aggrPool['lowlevel.spectral_contrast_valleys.mean'][0]
-                features_dict['lowlevel.spectral_contrast_valleys.stdev.2'] = aggrPool['lowlevel.spectral_contrast_valleys.stdev'][2]
-                features_dict['lowlevel.spectral_contrast_valleys.stdev.3'] = aggrPool['lowlevel.spectral_contrast_valleys.stdev'][3]
-                features_dict['lowlevel.spectral_contrast_valleys.stdev.4'] = aggrPool['lowlevel.spectral_contrast_valleys.stdev'][4]
-                features_dict['lowlevel.spectral_contrast_valleys.stdev.5'] = aggrPool['lowlevel.spectral_contrast_valleys.stdev'][5]
-                features_dict['lowlevel.spectral_flux.mean'] = aggrPool['lowlevel.spectral_rms.mean']
-                features_dict['lowlevel.gfcc.mean.0'] = aggrPool['lowlevel.gfcc.mean'][0]
-                features_dict['lowlevel.spectral_rms.mean'] = aggrPool['lowlevel.spectral_rms.mean']
-                features_dict['replay_gain'] = replay_gain
+
+                descriptorList = aggrPool.descriptorNames()
+                for descriptor in descriptorList:
+                    value = aggrPool[descriptor]
+                    if(str(type(value)) == "<class 'numpy.ndarray'>"):
+                        for idx, subVal in enumerate(value):
+                            fullDescriptor = descriptor + '.' + str(idx)
+                            features_dict[fullDescriptor] = subVal
+                    else:
+                        features_dict[descriptor] = aggrPool[descriptor]
+
+                # features_dict['lowlevel.silence_rate.stdev'] = aggrPool['lowlevel.silence_rate.stdev']
+                # features_dict['lowlevel.spectral_contrast_valleys.mean.0'] = aggrPool['lowlevel.spectral_contrast_valleys.mean'][0]
+                # features_dict['lowlevel.spectral_contrast_valleys.stdev.2'] = aggrPool['lowlevel.spectral_contrast_valleys.stdev'][2]
+                # features_dict['lowlevel.spectral_contrast_valleys.stdev.3'] = aggrPool['lowlevel.spectral_contrast_valleys.stdev'][3]
+                # features_dict['lowlevel.spectral_contrast_valleys.stdev.4'] = aggrPool['lowlevel.spectral_contrast_valleys.stdev'][4]
+                # features_dict['lowlevel.spectral_contrast_valleys.stdev.5'] = aggrPool['lowlevel.spectral_contrast_valleys.stdev'][5]
+                # features_dict['lowlevel.spectral_flux.mean'] = aggrPool['lowlevel.spectral_rms.mean']
+                # features_dict['lowlevel.gfcc.mean.0'] = aggrPool['lowlevel.gfcc.mean'][0]
+                # features_dict['lowlevel.spectral_rms.mean'] = aggrPool['lowlevel.spectral_rms.mean']
+                # features_dict['replay_gain'] = replay_gain
 
                 # reset counter and clear pool
                 frameCount_window = 0

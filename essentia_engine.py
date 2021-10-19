@@ -3,6 +3,7 @@ import sys
 from math import sqrt
 import essentia.standard as engine
 import essentia.utils as utils
+import essentia
 
 
 class EssentiaEngine:
@@ -26,6 +27,7 @@ class EssentiaEngine:
 		self.gfcc = engine.GFCC(sampleRate=self.sampleRate)
 		self.rms = engine.RMS()
 		self.rgain = engine.ReplayGain(sampleRate=self.sampleRate)
+		self.mfcc = engine.MFCC(sampleRate = self.sampleRate)
 		print('engine start')
 
 	# replay gain
@@ -42,9 +44,6 @@ class EssentiaEngine:
 		sc_coeff, sc_valley = self.spectral_contrast(frameSpectrum)
 		return sc_valley
 
-	def get_silence_rate(self, frame):
-		return self.silence_rate(frame)
-
 	def get_spectral_flux(self, frameSpectrum):
 		return self.spectral_flux(frameSpectrum)
 
@@ -56,4 +55,15 @@ class EssentiaEngine:
 	def get_rms(self, frameSpectrum):
 		return self.rms(frameSpectrum)
 
-		
+	def get_silence_rate(self, frame, silence_threshold_dB):
+		p = essentia.instantPower( frame )
+		silence_threshold = pow(10.0, (silence_threshold_dB / 10.0))
+		if p < silence_threshold:
+			return 1.0
+		else:
+			return 0.0
+	
+	def get_mfcc(self, frameSpectrum):
+		return self.mfcc(frameSpectrum)
+
+	
