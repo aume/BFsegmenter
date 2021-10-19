@@ -3,20 +3,19 @@ from sklearn import linear_model
 
 class AffectPredict:
     def __init__(self):
-        f = open('datasets/valencearousal_training.csv','r')
+        f = open('datasets/valencearousal_training1.csv','r')
 
         self.header = f.readline().split(',')
         training_data = np.loadtxt(f,delimiter=",")
 
-        self.arousal_data = training_data[:,9:10] # first two colums are valence and arousal
-        self.valence_data = training_data[:,10:11] # first two colums are valence and arousal
-        self.features_data = training_data[:,0:10]
+        self.arousal_data = training_data[:,156:157] # first two colums are valence and arousal
+        self.valence_data = training_data[:,157:158] # first two colums are valence and arousal
+        self.features_data = training_data[:,0:156]
 
         # verify correct training data length
         assert len(self.arousal_data) == len(self.features_data)
         assert len(self.valence_data) == len(self.features_data)
-        print('arousal len: ', len(self.features_data[0]))
-        print(self.features_data[0])
+
         self.valence_model = linear_model.LinearRegression()
         self.valence_model.fit(self.features_data, self.valence_data)
 

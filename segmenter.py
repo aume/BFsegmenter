@@ -208,9 +208,9 @@ class Segmenter:
                 temp['end'] = i['end']
                 temp['feats'] = self.avgDicItems(i['feats'], i['count'])
                 f = temp['feats']
-                vect = f.keys()
-                # temp['valence'] = self.afp.predict_valence(vect)
-                # temp['arousal'] = self.afp.predict_arousal(vect)
+                vect = list(f.values())
+                temp['valence'] = self.afp.predict_valence(vect)
+                temp['arousal'] = self.afp.predict_arousal(vect)
                 region_data.append(temp)
         return region_data
 
