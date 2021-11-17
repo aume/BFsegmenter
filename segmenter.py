@@ -74,89 +74,34 @@ class Segmenter:
         processed = []  # storage for the classified segments
 
         for win in FrameGenerator(audio, frameSize=self.frameSize, hopSize=self.hopSize, startFromZero=True, lastFrameToEndOfFile=True):
-
+            # extract all features
             extractor = self.engine.Extractor()
             pool = extractor(win)
-            featurePool = self.engine.PoolAggregator(defaultStats=['mean', 'stdev', 'skew', 'dmean', 'dvar', 'dmean2', 'dvar2'])(pool)
+            aggrigatedPool = self.engine.PoolAggregator(defaultStats=['mean', 'stdev', 'skew', 'dmean', 'dvar', 'dmean2', 'dvar2'])(pool)
 
-            # spectral contrast valleys
-            frame_windowed = self.engine.get_window(frame)
-            frame_spectrum = self.engine.get_spectrum(frame_windowed)
-            sc_valley = self.engine.get_spectral_contrast(frame_spectrum)
-            pool.add('lowlevel.spectral_contrast_valleys', sc_valley)
+            windowCount +=1
 
-            # silence rate
-            pool.add('lowlevel.silence_rate_60dB', self.engine.get_silence_rate(frame, -60))
-            pool.add('lowlevel.silence_rate_30dB', self.engine.get_silence_rate(frame, -30))
-            pool.add('lowlevel.silence_rate_20dB', self.engine.get_silence_rate(frame, -20))
+            # compute mean and variance of the frames using the pool aggregator, assign to dict in same order as training
+            # narrow everything down to select features
+            features_dict = {}
+            descriptorList = aggrigatedPool.descriptorNames()
+            for feature in self.clf.feature_names:
+                features_dict[feature] = aggrigatedPool[feature]
 
-            # spectral flux
-            pool.add('lowlevel.spectral_flux',
-                     self.engine.get_spectral_flux(frame_spectrum))
+            # reset counter and clear pool
+            pool.clear()
+            aggrigatedPool.clear()
 
-            # Gammatone-frequency cepstral coefficients
-            gfccs = self.engine.get_gfcc(frame_spectrum)
-            pool.add('lowlevel.gfcc', gfccs)
+            # prepare feature values to predict the class
+            vect = list(features_dict.values())
 
-            # spectral RMS
-            pool.add('lowlevel.spectral_rms',
-                     self.engine.get_rms(frame_spectrum))
+            classification = self.clf.predict(vect)[0]
+            prob = self.clf.predictProb(vect)
 
-            # mfcc
-            melBands, mfccs = self.engine.get_mfcc(frame_spectrum)
-            pool.add('lowlevel.mfcc', mfccs)
-            pool.add('lowlevel.melbands', melBands)
-
-            # increment counters
-            frameCount_window += 1
-            frameCount_file += 1
-
-            # detect if we have traversed a whole window
-            if (frameCount_window == numFrames_window):
-                windowCount +=1
-
-                # replay gain is not frame level like the others, get it for the whole window
-                try:
-                    window_start = int((windowCount - 1) * self.windowDuration * self.sampleRate)
-                    window_end =  int(windowCount * self.windowDuration * self.sampleRate)
-                    replay_gain = self.engine.get_rgain(audio[ window_start : window_end])
-                    replay_gain_previous = replay_gain
-                except:
-                    # if window is too small to get replay gain, use the value from the previous window
-                    print('window size to small for replay gain algorithm, using previous value')
-                    replay_gain = replay_gain_previous
-                pool.add('metadata.audio_properties.replay_gain', replay_gain)
-
-                # compute mean and variance of the frames using the pool aggregator, assign to dict in same order as training
-                aggrPool = PoolAggregator(defaultStats=['mean', 'stdev'])(pool)
-                features_dict = {}
-
-                descriptorList = aggrPool.descriptorNames()
-
-                for descriptor in descriptorList:
-                    value = aggrPool[descriptor]
-                    if(str(type(value)) == "<class 'numpy.ndarray'>"):
-                        for idx, subVal in enumerate(value):
-                            fullDescriptor = descriptor + '.' + str(idx)
-                            features_dict[fullDescriptor] = subVal
-                    else:
-                        features_dict[descriptor] = aggrPool[descriptor]
-
-                # reset counter and clear pool
-                frameCount_window = 0
-                pool.clear()
-                aggrPool.clear()
-
-                # prepare feature values to predict the class
-                vect = list(features_dict.values())
-
-                classification = self.clf.predict(vect)[0]
-                prob = self.clf.predictProb(vect)
-
-                start_time = float((frameCount_file - numFrames_window))*(self.frameSize/2)/float(self.sampleRate)
-                end_time = float(frameCount_file*(self.frameSize/2))/float(self.sampleRate)
-                processed.append({'type': classification, 'probabilities': prob, 'start': start_time,
-                                 'end': end_time, 'feats': features_dict, 'count': 1})
+            start_time = float((frameCount_file - numFrames_window))*(self.frameSize/2)/float(self.sampleRate)
+            end_time = float(frameCount_file*(self.frameSize/2))/float(self.sampleRate)
+            processed.append({'type': classification, 'probabilities': prob, 'start': start_time,
+                                'end': end_time, 'feats': features_dict, 'count': 1})
         return processed
 
     # K Means clustering - renaming segments giving preference to foreground (default val of 3)
