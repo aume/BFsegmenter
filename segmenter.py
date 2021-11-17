@@ -30,6 +30,7 @@ class Segmenter:
         self.sampleRate = 44100  # sample rate
         self.frameSize = 1024  # samples in each frame
         self.hopSize = 512
+        self.windowSize = 44100
 
         # the essentia engine make sure that the features were extracted under the same conditions as the training data
         self.engine = EssentiaEngine(self.sampleRate, self.frameSize)
@@ -55,7 +56,6 @@ class Segmenter:
 
         # frame counter used to detect end of window
         frameCount_window = 0
-        frameCount_file = 0
         windowCount = 0
 
         # calculate the length of analysis frames
@@ -73,20 +73,45 @@ class Segmenter:
 
         processed = []  # storage for the classified segments
 
-        for win in FrameGenerator(audio, frameSize=self.frameSize, hopSize=self.hopSize, startFromZero=True, lastFrameToEndOfFile=True):
+        for win in FrameGenerator(audio, frameSize=self.windowSize, hopSize=self.windowSize, startFromZero=True, lastFrameToEndOfFile=True):
             # extract all features
-            extractor = self.engine.Extractor()
-            pool = extractor(win)
-            aggrigatedPool = self.engine.PoolAggregator(defaultStats=['mean', 'stdev', 'skew', 'dmean', 'dvar', 'dmean2', 'dvar2'])(pool)
+            pool = self.engine.extractor(win)
+            aggrigatedPool = essentia.standard.PoolAggregator(defaultStats=['mean', 'stdev', 'skew', 'dmean', 'dvar', 'dmean2', 'dvar2'])(pool)
 
-            windowCount +=1
+            
 
             # compute mean and variance of the frames using the pool aggregator, assign to dict in same order as training
             # narrow everything down to select features
             features_dict = {}
-            descriptorList = aggrigatedPool.descriptorNames()
-            for feature in self.clf.feature_names:
-                features_dict[feature] = aggrigatedPool[feature]
+            descriptorNames = aggrigatedPool.descriptorNames()
+
+            print('window: ', windowCount)
+
+            values = []
+            descriptorList = []
+
+            # unpack features in lists 
+            for descriptor in descriptorNames:
+                if('tonal' in descriptor or 'rhythm' in descriptor):
+                    continue
+                value = aggrigatedPool[descriptor]
+                if (str(type(value)) == "<class 'numpy.ndarray'>"):
+                    for idx, subVal in enumerate(value):
+                        descriptor1 = descriptor + '.' + str(idx)
+                        descriptorList.append(descriptor + '.' + str(idx))
+                        values.append(subVal)
+                    continue
+                else:
+                    if(isinstance(value,str)):
+                        pass
+                    else:
+                        descriptorList.append(descriptor)
+                        values.append(value)
+
+            # filter features
+            for feature in descriptorList:
+                if(feature in self.clf.feature_names):
+                    features_dict[feature] = values[descriptorList.index(feature)]
 
             # reset counter and clear pool
             pool.clear()
@@ -98,8 +123,18 @@ class Segmenter:
             classification = self.clf.predict(vect)[0]
             prob = self.clf.predictProb(vect)
 
-            start_time = float((frameCount_file - numFrames_window))*(self.frameSize/2)/float(self.sampleRate)
-            end_time = float(frameCount_file*(self.frameSize/2))/float(self.sampleRate)
+            print('window count: ', windowCount)
+            print('window size: ', self.windowSize)
+
+            start_time = float(windowCount * self.windowSize)/float(self.sampleRate)
+            end_time = float((windowCount+1) * self.windowSize)/float(self.sampleRate)
+
+            print('start time:', start_time)
+            print('end_time: ', end_time)
+
+            frameCount_window += self.windowSize
+            windowCount +=1
+
             processed.append({'type': classification, 'probabilities': prob, 'start': start_time,
                                 'end': end_time, 'feats': features_dict, 'count': 1})
         return processed
@@ -158,14 +193,15 @@ class Segmenter:
                 temp['feats'] = self.avgDicItems(i['feats'], i['count'])
                 f = temp['feats']
                 vect = list(f.values())
-                temp['valence'] = self.afp.predict_valence(vect)
-                temp['arousal'] = self.afp.predict_arousal(vect)
+                # temp['valence'] = self.afp.predict_valence(vect)
+                # temp['arousal'] = self.afp.predict_arousal(vect)
                 region_data.append(temp)
         return region_data
 
     def avgDicItems(self, D, a):
         result = {}
         for key in D.keys():
+            D[key]/a
             result[key] = D[key]/a
         return result
 
