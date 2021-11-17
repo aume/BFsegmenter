@@ -13,7 +13,8 @@ class BFClassifier(object):
         super().__init__()
         
         # get the training data
-        featureVectors, classList, descriptors = featuresToLists('datasets/manualfeatures_BF200.csv')
+        self.features = [44, 69, 95, 188, 195, 430, 472, 500, 531, 536, 539, 542, 549, 561, 568, 577, 580]
+        featureVectors, classList, descriptors = selectFeaturesToLists('datasets/features_BF200.csv', self.features)
 
         # create model, scale the data using a pipeline 
         # computes the mean and standard deviation on the training set so as to be able to later re-apply the same transformation on the testing set

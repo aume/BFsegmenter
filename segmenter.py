@@ -73,7 +73,11 @@ class Segmenter:
 
         processed = []  # storage for the classified segments
 
-        for frame in FrameGenerator(audio, frameSize=self.frameSize, hopSize=self.hopSize, startFromZero=True, lastFrameToEndOfFile=True):
+        for win in FrameGenerator(audio, frameSize=self.frameSize, hopSize=self.hopSize, startFromZero=True, lastFrameToEndOfFile=True):
+
+            extractor = self.engine.Extractor()
+            pool = extractor(win)
+            featurePool = self.engine.PoolAggregator(defaultStats=['mean', 'stdev', 'skew', 'dmean', 'dvar', 'dmean2', 'dvar2'])(pool)
 
             # spectral contrast valleys
             frame_windowed = self.engine.get_window(frame)

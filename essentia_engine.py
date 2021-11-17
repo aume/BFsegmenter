@@ -12,22 +12,7 @@ class EssentiaEngine:
 		self.frameSize = frameSize
 
 		# algorithms
-		self.window = engine.Windowing(
-		    type='blackmanharris62', zeroPadding=0, size=self.frameSize)
-		self.spectral_contrast = engine.SpectralContrast(frameSize=self.frameSize,
-                                                        sampleRate=self.sampleRate,
-                                                        numberBands=6,
-                                                        lowFrequencyBound=20,
-                                                        highFrequencyBound=11000,
-                                                        neighbourRatio=0.4,
-                                                        staticDistribution=0.15)
-		self.spectrum = engine.Spectrum(size=frameSize)
-		self.silence_rate = engine.SilenceRate(thresholds=[utils.db2lin(-60.0/2.0)])
-		self.spectral_flux = engine.Flux()
-		self.gfcc = engine.GFCC(sampleRate=self.sampleRate)
-		self.rms = engine.RMS()
-		self.rgain = engine.ReplayGain(sampleRate=self.sampleRate)
-		self.mfcc = engine.MFCC(sampleRate = self.sampleRate)
+		self.extractor = engine.Extractor()
 		print('engine start')
 
 	# replay gain
