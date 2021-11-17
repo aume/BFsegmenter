@@ -49,3 +49,5 @@ def featuresToLists(featuresFilename):
             classList.append(r.pop())
             
     return featureVectors, classList, featureNames
+
+print('heeloo')
