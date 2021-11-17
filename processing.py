@@ -49,3 +49,38 @@ def featuresToLists(featuresFilename):
             classList.append(r.pop())
             
     return featureVectors, classList, featureNames
+
+    # formats the data into two lists for the sklearn library: features and classes
+def partitionSelectData(filename, feats):
+    f = open( filename, 'r')
+    with f:
+        reader = csv.reader(f)
+        featureVectors = list(reader)
+
+    # remove empty lists
+    featureVectors = list(filter(None, featureVectors))
+
+    # format data for model
+    classList = []
+    featureNames = featureVectors.pop(0) # remove first element (table titles)
+    selected_featureNames = [featureNames[index] for index in feats]
+
+    # remove the classes from the end of the list and append to their own
+    for r in featureVectors:
+        classList.append(r.pop())
+
+    # return only the select features
+    finalVectors = []
+    for vect in featureVectors:
+        selected_elements = [vect[index] for index in feats]
+        finalVectors.append(selected_elements)
+
+    # convert strings to num
+    nums = []
+    for item in finalVectors:
+        temp = []
+        for n in item:
+            temp.append(float(n))
+        nums.append(temp)
+    
+    return nums, classList, selected_featureNames

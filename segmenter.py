@@ -30,7 +30,7 @@ class Segmenter:
         self.sampleRate = 44100  # sample rate
         self.frameSize = 1024  # samples in each frame
         self.hopSize = 512
-        self.windowSize = 44100
+        self.windowSize = int(self.sampleRate * self.windowDuration)
 
         # the essentia engine make sure that the features were extracted under the same conditions as the training data
         self.engine = EssentiaEngine(self.sampleRate, self.frameSize)
@@ -38,6 +38,8 @@ class Segmenter:
     # run the segmentation
     def segment(self, afile):
         rawRegions = self.extractRegions(afile)
+        # for item in rawRegions:
+        #     print(item)
         clusteredRegions = self.Clustering(rawRegions)
         finalRegions = self.conjunction(clusteredRegions)
         return finalRegions
@@ -67,6 +69,7 @@ class Segmenter:
         print('frame duration: ', frame_duration)
         print('audio len: ', len(audio))
         print('number frames total: ', len(audio)/self.frameSize)
+        print('window size: ', self.windowSize)
 
         # dictionary for class names from libsvm format
         types = {1: 'back', 2: 'fore', 3: 'backfore'}
@@ -78,14 +81,10 @@ class Segmenter:
             pool = self.engine.extractor(win)
             aggrigatedPool = essentia.standard.PoolAggregator(defaultStats=['mean', 'stdev', 'skew', 'dmean', 'dvar', 'dmean2', 'dvar2'])(pool)
 
-            
-
             # compute mean and variance of the frames using the pool aggregator, assign to dict in same order as training
             # narrow everything down to select features
             features_dict = {}
             descriptorNames = aggrigatedPool.descriptorNames()
-
-            print('window: ', windowCount)
 
             values = []
             descriptorList = []
@@ -97,7 +96,6 @@ class Segmenter:
                 value = aggrigatedPool[descriptor]
                 if (str(type(value)) == "<class 'numpy.ndarray'>"):
                     for idx, subVal in enumerate(value):
-                        descriptor1 = descriptor + '.' + str(idx)
                         descriptorList.append(descriptor + '.' + str(idx))
                         values.append(subVal)
                     continue
@@ -123,14 +121,8 @@ class Segmenter:
             classification = self.clf.predict(vect)[0]
             prob = self.clf.predictProb(vect)
 
-            print('window count: ', windowCount)
-            print('window size: ', self.windowSize)
-
             start_time = float(windowCount * self.windowSize)/float(self.sampleRate)
             end_time = float((windowCount+1) * self.windowSize)/float(self.sampleRate)
-
-            print('start time:', start_time)
-            print('end_time: ', end_time)
 
             frameCount_window += self.windowSize
             windowCount +=1
