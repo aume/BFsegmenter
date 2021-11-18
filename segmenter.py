@@ -28,12 +28,12 @@ class Segmenter:
 
         self.windowDuration = 0.5 # analysis window length in seconds
         self.sampleRate = 44100  # sample rate
-        self.frameSize = 1024  # samples in each frame
-        self.hopSize = 512
+        self.frameSize = 2048  # samples in each frame
+        self.hopSize = 1024
         self.windowSize = int(self.sampleRate * self.windowDuration)
 
         # the essentia engine make sure that the features were extracted under the same conditions as the training data
-        self.engine = EssentiaEngine(self.sampleRate, self.frameSize)
+        self.engine = EssentiaEngine(self.sampleRate, self.frameSize, self.hopSize)
 
     # run the segmentation
     def segment(self, afile):
@@ -57,7 +57,6 @@ class Segmenter:
         pool = essentia.Pool()
 
         # frame counter used to detect end of window
-        frameCount_window = 0
         windowCount = 0
 
         # calculate the length of analysis frames
@@ -71,14 +70,14 @@ class Segmenter:
         print('number frames total: ', len(audio)/self.frameSize)
         print('window size: ', self.windowSize)
 
-        # dictionary for class names from libsvm format
-        types = {1: 'back', 2: 'fore', 3: 'backfore'}
+        # translate type naming convention from csv to database 
+        types = {'background': 'back', 'foreground': 'fore', 'bafoground': 'backfore'}
 
         processed = []  # storage for the classified segments
 
-        for win in FrameGenerator(audio, frameSize=self.windowSize, hopSize=self.windowSize, startFromZero=True, lastFrameToEndOfFile=True):
+        for window in FrameGenerator(audio, frameSize=self.windowSize, hopSize=self.windowSize, startFromZero=True, lastFrameToEndOfFile=True):
             # extract all features
-            pool = self.engine.extractor(win)
+            pool = self.engine.extractor(window)
             aggrigatedPool = essentia.standard.PoolAggregator(defaultStats=['mean', 'stdev', 'skew', 'dmean', 'dvar', 'dmean2', 'dvar2'])(pool)
 
             # compute mean and variance of the frames using the pool aggregator, assign to dict in same order as training
@@ -118,13 +117,12 @@ class Segmenter:
             # prepare feature values to predict the class
             vect = list(features_dict.values())
 
-            classification = self.clf.predict(vect)[0]
+            classification = types[self.clf.predict(vect)[0]]
             prob = self.clf.predictProb(vect)
 
             start_time = float(windowCount * self.windowSize)/float(self.sampleRate)
             end_time = float((windowCount+1) * self.windowSize)/float(self.sampleRate)
 
-            frameCount_window += self.windowSize
             windowCount +=1
 
             processed.append({'type': classification, 'probabilities': prob, 'start': start_time,

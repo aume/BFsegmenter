@@ -7,12 +7,13 @@ import essentia
 
 
 class EssentiaEngine:
-	def __init__(self, sampleRate, frameSize):
+	def __init__(self, sampleRate, frameSize, hopSize):
 		self.sampleRate = sampleRate
 		self.frameSize = frameSize
+		self.hopSize = hopSize
 
 		# algorithms
-		self.extractor = engine.Extractor()
+		self.extractor = engine.Extractor(lowLevelFrameSize = frameSize, lowLevelHopSize = hopSize, dynamicsFrameSize = frameSize, dynamicsHopSize = hopSize)
 		print('engine start')
 
 	# replay gain

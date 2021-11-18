@@ -3,9 +3,11 @@ import os
 
 s1 = Segmenter()
 
-for filename in os.listdir('Test6Sounds'):
+foldername = 'TestSounds'
+
+for filename in os.listdir(foldername):
     print('\nrunning: ', filename)
-    directory = 'Test6Sounds/' + filename
+    directory = foldername + '/' + filename
     windowData = s1.segment(directory)
     for item in windowData:
-        print('\n',item)
+        print('\n %f %f %f %s'% (item['start'], item['end'], item['duration'], item['type']))
