@@ -50,6 +50,7 @@ def featuresToLists(featuresFilename):
             
     return featureVectors, classList, featureNames
 
+
     # formats the data into two lists for the sklearn library: features and classes
 def partitionSelectData(filename, feats):
     f = open( filename, 'r')
@@ -84,3 +85,4 @@ def partitionSelectData(filename, feats):
         nums.append(temp)
     
     return nums, classList, selected_featureNames
+
