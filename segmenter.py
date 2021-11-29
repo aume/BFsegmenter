@@ -28,15 +28,18 @@ class Segmenter:
 
         self.windowDuration = 0.5 # analysis window length in seconds
         self.sampleRate = 44100  # sample rate
-        self.frameSize = 1024  # samples in each frame
-        self.hopSize = 512
+        self.frameSize = 2048  # samples in each frame
+        self.hopSize = 1024
+        self.windowSize = int(self.sampleRate * self.windowDuration)
 
         # the essentia engine make sure that the features were extracted under the same conditions as the training data
-        self.engine = EssentiaEngine(self.sampleRate, self.frameSize)
+        self.engine = EssentiaEngine(self.sampleRate, self.frameSize, self.hopSize)
 
     # run the segmentation
     def segment(self, afile):
         rawRegions = self.extractRegions(afile)
+        # for item in rawRegions:
+        #     print(item)
         clusteredRegions = self.Clustering(rawRegions)
         finalRegions = self.conjunction(clusteredRegions)
         return finalRegions
@@ -54,8 +57,6 @@ class Segmenter:
         pool = essentia.Pool()
 
         # frame counter used to detect end of window
-        frameCount_window = 0
-        frameCount_file = 0
         windowCount = 0
 
         # calculate the length of analysis frames
@@ -67,92 +68,65 @@ class Segmenter:
         print('frame duration: ', frame_duration)
         print('audio len: ', len(audio))
         print('number frames total: ', len(audio)/self.frameSize)
+        print('window size: ', self.windowSize)
 
-        # dictionary for class names from libsvm format
-        types = {1: 'back', 2: 'fore', 3: 'backfore'}
+        # translate type naming convention from csv to database 
+        types = {'background': 'back', 'foreground': 'fore', 'bafoground': 'backfore'}
 
         processed = []  # storage for the classified segments
 
-        for frame in FrameGenerator(audio, frameSize=self.frameSize, hopSize=self.hopSize, startFromZero=True, lastFrameToEndOfFile=True):
+        for window in FrameGenerator(audio, frameSize=self.windowSize, hopSize=self.windowSize, startFromZero=True, lastFrameToEndOfFile=True):
+            # extract all features
+            pool = self.engine.extractor(window)
+            aggrigatedPool = essentia.standard.PoolAggregator(defaultStats=['mean', 'stdev', 'skew', 'dmean', 'dvar', 'dmean2', 'dvar2'])(pool)
 
-            # spectral contrast valleys
-            frame_windowed = self.engine.get_window(frame)
-            frame_spectrum = self.engine.get_spectrum(frame_windowed)
-            sc_valley = self.engine.get_spectral_contrast(frame_spectrum)
-            pool.add('lowlevel.spectral_contrast_valleys', sc_valley)
+            # compute mean and variance of the frames using the pool aggregator, assign to dict in same order as training
+            # narrow everything down to select features
+            features_dict = {}
+            descriptorNames = aggrigatedPool.descriptorNames()
 
-            # silence rate
-            pool.add('lowlevel.silence_rate_60dB', self.engine.get_silence_rate(frame, -60))
-            pool.add('lowlevel.silence_rate_30dB', self.engine.get_silence_rate(frame, -30))
-            pool.add('lowlevel.silence_rate_20dB', self.engine.get_silence_rate(frame, -20))
+            values = []
+            descriptorList = []
 
-            # spectral flux
-            pool.add('lowlevel.spectral_flux',
-                     self.engine.get_spectral_flux(frame_spectrum))
-
-            # Gammatone-frequency cepstral coefficients
-            gfccs = self.engine.get_gfcc(frame_spectrum)
-            pool.add('lowlevel.gfcc', gfccs)
-
-            # spectral RMS
-            pool.add('lowlevel.spectral_rms',
-                     self.engine.get_rms(frame_spectrum))
-
-            # mfcc
-            melBands, mfccs = self.engine.get_mfcc(frame_spectrum)
-            pool.add('lowlevel.mfcc', mfccs)
-            pool.add('lowlevel.melbands', melBands)
-
-            # increment counters
-            frameCount_window += 1
-            frameCount_file += 1
-
-            # detect if we have traversed a whole window
-            if (frameCount_window == numFrames_window):
-                windowCount +=1
-
-                # replay gain is not frame level like the others, get it for the whole window
-                try:
-                    window_start = int((windowCount - 1) * self.windowDuration * self.sampleRate)
-                    window_end =  int(windowCount * self.windowDuration * self.sampleRate)
-                    replay_gain = self.engine.get_rgain(audio[ window_start : window_end])
-                    replay_gain_previous = replay_gain
-                except:
-                    # if window is too small to get replay gain, use the value from the previous window
-                    print('window size to small for replay gain algorithm, using previous value')
-                    replay_gain = replay_gain_previous
-                pool.add('metadata.audio_properties.replay_gain', replay_gain)
-
-                # compute mean and variance of the frames using the pool aggregator, assign to dict in same order as training
-                aggrPool = PoolAggregator(defaultStats=['mean', 'stdev'])(pool)
-                features_dict = {}
-
-                descriptorList = aggrPool.descriptorNames()
-
-                for descriptor in descriptorList:
-                    value = aggrPool[descriptor]
-                    if(str(type(value)) == "<class 'numpy.ndarray'>"):
-                        for idx, subVal in enumerate(value):
-                            fullDescriptor = descriptor + '.' + str(idx)
-                            features_dict[fullDescriptor] = subVal
+            # unpack features in lists 
+            for descriptor in descriptorNames:
+                if('tonal' in descriptor or 'rhythm' in descriptor):
+                    continue
+                value = aggrigatedPool[descriptor]
+                if (str(type(value)) == "<class 'numpy.ndarray'>"):
+                    for idx, subVal in enumerate(value):
+                        descriptorList.append(descriptor + '.' + str(idx))
+                        values.append(subVal)
+                    continue
+                else:
+                    if(isinstance(value,str)):
+                        pass
                     else:
-                        features_dict[descriptor] = aggrPool[descriptor]
+                        descriptorList.append(descriptor)
+                        values.append(value)
 
-                # reset counter and clear pool
-                frameCount_window = 0
-                pool.clear()
-                aggrPool.clear()
+            # filter features
+            for feature in descriptorList:
+                if(feature in self.clf.feature_names):
+                    features_dict[feature] = values[descriptorList.index(feature)]
 
-                # prepare feature values to predict the class
-                vect = list(features_dict.values())
+            # reset counter and clear pool
+            pool.clear()
+            aggrigatedPool.clear()
 
-                classification = self.clf.predict(vect)[0]
-                prob = self.clf.predictProb(vect)
+            # prepare feature values to predict the class
+            vect = list(features_dict.values())
 
-                start_time = float((frameCount_file - numFrames_window))*(self.frameSize/2)/float(self.sampleRate)
-                end_time = float(frameCount_file*(self.frameSize/2))/float(self.sampleRate)
-                processed.append({'type': classification, 'probabilities': prob, 'start': start_time,
-                                 'end': end_time, 'feats': features_dict, 'count': 1})
+            classification = types[self.clf.predict(vect)[0]]
+            prob = self.clf.predictProb(vect)
+
+            start_time = float(windowCount * self.windowSize)/float(self.sampleRate)
+            end_time = float((windowCount+1) * self.windowSize)/float(self.sampleRate)
+
+            windowCount +=1
+
+            processed.append({'type': classification, 'probabilities': prob, 'start': start_time,
+                                'end': end_time, 'feats': features_dict, 'count': 1})
         return processed
 
     # K Means clustering - renaming segments giving preference to foreground (default val of 3)
@@ -209,14 +183,15 @@ class Segmenter:
                 temp['feats'] = self.avgDicItems(i['feats'], i['count'])
                 f = temp['feats']
                 vect = list(f.values())
-                temp['valence'] = self.afp.predict_valence(vect)
-                temp['arousal'] = self.afp.predict_arousal(vect)
+                # temp['valence'] = self.afp.predict_valence(vect)
+                # temp['arousal'] = self.afp.predict_arousal(vect)
                 region_data.append(temp)
         return region_data
 
     def avgDicItems(self, D, a):
         result = {}
         for key in D.keys():
+            D[key]/a
             result[key] = D[key]/a
         return result
 

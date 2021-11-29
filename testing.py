@@ -1,10 +1,13 @@
 from segmenter import Segmenter
+import os
 
 s1 = Segmenter()
 
-file = 'BF90Corpus/Validation/foreground/aiff/9.aiff'
+foldername = 'TestSounds'
 
-windowData = s1.segment(file)
-
-for item in windowData:
-    print(item)
+for filename in os.listdir(foldername):
+    print('\nrunning: ', filename)
+    directory = foldername + '/' + filename
+    windowData = s1.segment(directory)
+    for item in windowData:
+        print('\n %f %f %f %s'% (item['start'], item['end'], item['duration'], item['type']))
