@@ -179,10 +179,13 @@ class Segmenter:
                 temp['start'] = i['start']
                 temp['end'] = i['end']
                 temp['feats'] = self.avgDicItems(i['feats'], i['count'])
+                # unpack features and apply masks for valence and arousal
                 f = temp['feats']
-                vect = list(f.values())
-                # temp['valence'] = self.afp.predict_valence(vect)
-                # temp['arousal'] = self.afp.predict_arousal(vect)
+                vect = np.array(list(f.values()))
+                arousal_vect = vect[self.afp.arousal_mask]
+                valence_vect = vect[self.afp.valence_mask]
+                temp['arousal'] = self.afp.predict_arousal(arousal_vect)
+                temp['valence'] = self.afp.predict_valence(valence_vect)
                 region_data.append(temp)
         return region_data
 
