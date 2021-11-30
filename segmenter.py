@@ -95,32 +95,28 @@ class Segmenter:
                 value = aggrigatedPool[descriptor]
                 if (str(type(value)) == "<class 'numpy.ndarray'>"):
                     for idx, subVal in enumerate(value):
-                        descriptorList.append(descriptor + '.' + str(idx))
-                        values.append(subVal)
+                        features_dict[descriptor + '.' + str(idx)] = subVal
                     continue
                 else:
                     if(isinstance(value,str)):
                         pass
                     else:
-                        descriptorList.append(descriptor)
-                        values.append(value)
+                        features_dict[descriptor] = value
 
-            # filter features
-            for feature in descriptorList:
-                if(feature in self.clf.feature_names):
-                    features_dict[feature] = values[descriptorList.index(feature)]
+            # filter features for bafo prediction TODO
 
             # reset counter and clear pool
             pool.clear()
             aggrigatedPool.clear()
 
             # prepare feature values to predict the class
-            vect = list(features_dict.values())
+            vect = np.array(list(features_dict.values()))
+
+            # filter the values for bf prediction
+            vect = vect[self.clf.features]
 
             classification = types[self.clf.predict(vect)[0]]
             prob = self.clf.predictProb(vect)
-
-            print('vect length: ', len(vect))
 
             start_time = float(windowCount * self.windowSize)/float(self.sampleRate)
             end_time = float((windowCount+1) * self.windowSize)/float(self.sampleRate)

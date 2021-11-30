@@ -1,5 +1,6 @@
 from segmenter import Segmenter
 import os
+import numpy as np
 
 s1 = Segmenter()
 
