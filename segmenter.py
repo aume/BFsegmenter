@@ -120,6 +120,8 @@ class Segmenter:
             classification = types[self.clf.predict(vect)[0]]
             prob = self.clf.predictProb(vect)
 
+            print('vect length: ', len(vect))
+
             start_time = float(windowCount * self.windowSize)/float(self.sampleRate)
             end_time = float((windowCount+1) * self.windowSize)/float(self.sampleRate)
 
