@@ -95,27 +95,25 @@ class Segmenter:
                 value = aggrigatedPool[descriptor]
                 if (str(type(value)) == "<class 'numpy.ndarray'>"):
                     for idx, subVal in enumerate(value):
-                        descriptorList.append(descriptor + '.' + str(idx))
-                        values.append(subVal)
+                        features_dict[descriptor + '.' + str(idx)] = subVal
                     continue
                 else:
                     if(isinstance(value,str)):
                         pass
                     else:
-                        descriptorList.append(descriptor)
-                        values.append(value)
+                        features_dict[descriptor] = value
 
-            # filter features
-            for feature in descriptorList:
-                if(feature in self.clf.feature_names):
-                    features_dict[feature] = values[descriptorList.index(feature)]
+            # filter features for bafo prediction TODO
 
             # reset counter and clear pool
             pool.clear()
             aggrigatedPool.clear()
 
             # prepare feature values to predict the class
-            vect = list(features_dict.values())
+            vect = np.array(list(features_dict.values()))
+
+            # filter the values for bf prediction
+            vect = vect[self.clf.features]
 
             classification = types[self.clf.predict(vect)[0]]
             prob = self.clf.predictProb(vect)
@@ -181,10 +179,13 @@ class Segmenter:
                 temp['start'] = i['start']
                 temp['end'] = i['end']
                 temp['feats'] = self.avgDicItems(i['feats'], i['count'])
+                # unpack features and apply masks for valence and arousal
                 f = temp['feats']
-                vect = list(f.values())
-                # temp['valence'] = self.afp.predict_valence(vect)
-                # temp['arousal'] = self.afp.predict_arousal(vect)
+                vect = np.array(list(f.values()))
+                arousal_vect = vect[self.afp.arousal_mask]
+                valence_vect = vect[self.afp.valence_mask]
+                temp['arousal'] = self.afp.predict_arousal(arousal_vect)
+                temp['valence'] = self.afp.predict_valence(valence_vect)
                 region_data.append(temp)
         return region_data
 
