@@ -6,5 +6,5 @@ This repo serves to:
 - update the 3 ML models 
 
 ## Requirements:
-sklearn
-numpy
+- sklearn
+- numpy
