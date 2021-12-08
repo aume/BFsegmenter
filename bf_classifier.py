@@ -11,6 +11,7 @@ class BFClassifier(object):
     """
 
     def __init__(self):
+        print('initializing classifier')
         super().__init__()
 
         fa = open('datasets/features_BF200.csv','r')
@@ -27,13 +28,13 @@ class BFClassifier(object):
         self.mask = [49, 71, 77, 88, 95, 104, 125, 144, 153, 173, 216, 247, 255, 482, 561, 568, 580]
 
         # apply mask to get select features only
-        self.train_X = [x[self.mask] for x in self.train_X]
+        train_X = [x[self.mask] for x in train_X]
 
         # create model, scale the data using a pipeline 
         # computes the mean and standard deviation on the training set so as to be able to later re-apply the same transformation on the testing set
-        self.pipe = make_pipeline(StandardScaler(), svm.SVC(C=0.12742749857031335, kernel='linear'))
+        self.pipe = make_pipeline(StandardScaler(), svm.SVC(C=0.12742749857031335, kernel='linear', probability=True))
         # train the model
-        self.pipe.fit(train_X, train_y) 
+        self.pipe.fit(train_X, train_y.ravel()) 
         print('model fit succesfully')
     
     def predict(self, features):
