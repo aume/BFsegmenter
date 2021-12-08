@@ -9,13 +9,8 @@ from essentia.standard import MonoLoader, FrameGenerator, PoolAggregator
 import essentia.utils as utils
 import essentia
 
-# train model
-# segment new files
-
 debug = False
 
-#TODO
-# smooth probabilities?
 # processfile?
 
 class Segmenter:
@@ -38,14 +33,16 @@ class Segmenter:
 
     # run the segmentation
     def segment(self, afile):
-        rawRegions = self.extractRegions(afile)
-        # for item in rawRegions:
-        #     print(item)
-        clusteredRegions = self.Clustering(rawRegions)
-        finalRegions = self.conjunction(clusteredRegions)
-        return finalRegions
+        segments = self.extractRegions(afile)
 
-    # audio file path
+        segments = self.smoothProbabilities(segments)
+        segments = self.max_posterior(segments)
+        
+        segments = self.Clustering(segments)
+        segments = self.conjunction(segments)
+        return segments
+
+    # use the bf classifier to extract background, foreground, bafoground regions
     # returns # [file_path, [['type', start, end], [...], ['type'n, startn, endn]]]
     def extractRegions(self, afile):
 
@@ -62,6 +59,7 @@ class Segmenter:
 
         # calculate the length of analysis frames
         frame_duration = float(self.frameSize / 2)/float(self.sampleRate)
+        
         # number frames in a window
         numFrames_window = int(self.windowDuration / frame_duration)
 
@@ -153,8 +151,32 @@ class Segmenter:
                 start += 1
         return processed
 
+
+    # a simple median filtering
+    def max_posterior(self, processed, m_span=5):
+        import operator
+        medWin = m_span#int(floor(m_span/2))
+        filtered = []
+        for i in range(0,len(processed),1):
+            #print(i,'old',processed[i]['type'])
+            #if processed[i]['type'] != processed[i+1]['type']:
+            labels={'back':0, 'fore':0, 'backfore':0}
+            for j in range(max(0,i-medWin), min(i+medWin,len(processed)), 1):
+                k = processed[j]['type']
+                labels[k] = labels.setdefault(k, 0) + 1
+            maxlabel = max(labels.items(), key=operator.itemgetter(1))[0]
+            filtered.append(maxlabel)
+
+        for i in range(0,len(processed),1):
+            #print (i,'old',processed[i]['type'])
+            if processed[i]['type'] != filtered[i]:
+               processed[i]['type'] = filtered[i]
+               #print (i,'change',processed[i]['type'])
+
+        return processed
+
+    # Here we join up any same labelled adjacent regions
     def conjunction(self, processed):
-        # Here we join up any same labelled adjacent regions
         for i in range(1, len(processed), 1):
             if processed[i]['type'] == processed[i-1]['type']:  # if its the same
                 processed[i]['start'] = processed[i - 1]['start']  # update the start time
@@ -187,6 +209,26 @@ class Segmenter:
                 temp['valence'] = self.afp.predict_valence(valence_vect)
                 region_data.append(temp)
         return region_data
+
+    def smoothProbabilities(self, processed, winSize=3):
+        a = np.array(processed[0]['probabilities'])
+        
+        for i in range(0,len(processed),1):
+            #print processed[i]['probabilities']
+            a = np.vstack((a,processed[i]['probabilities']))
+        #print a
+        
+        for i in range(a.shape[1]):
+            a[:,i]= ndimage.filters.median_filter(a[:, i], size=winSize)
+        #print a
+
+        import operator
+        labels = ['fore', 'back', 'backfore']
+        for i in range(0,len(processed),1):
+            processed[i]['probabilities'] = a[i]
+            index, value = max(enumerate(a[i]), key=operator.itemgetter(1))
+            processed[i]['type']=labels[index]
+        return processed
 
     def avgDicItems(self, D, a):
         result = {}

@@ -11,13 +11,20 @@ class BFClassifier(object):
     """
 
     def __init__(self):
-        print('initializing classifier')
         super().__init__()
 
+        print('initializing classifier')
+
+        # open the training data
         fa = open('datasets/features_BF200.csv','r')
+
+        # header contains all feature names
         self.header = fa.readline().split(',')
+
+        # load all data as np array
         bf_data = np.loadtxt(fa,delimiter=",")
 
+        # carve the data
         train_y = bf_data[:,-1:]
         train_X = bf_data[:,0:-1]
 
@@ -35,7 +42,8 @@ class BFClassifier(object):
         self.pipe = make_pipeline(StandardScaler(), svm.SVC(C=0.12742749857031335, kernel='linear', probability=True))
         # train the model
         self.pipe.fit(train_X, train_y.ravel()) 
-        print('model fit succesfully')
+        
+        print('classifier initialized')
     
     def predict(self, features):
         return self.pipe.predict([features])
