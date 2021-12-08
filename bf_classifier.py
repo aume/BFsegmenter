@@ -2,6 +2,7 @@ from processing import partitionSelectData
 from sklearn import svm
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
+import numpy as np
 
 class BFClassifier(object):
     """
@@ -11,18 +12,29 @@ class BFClassifier(object):
 
     def __init__(self):
         super().__init__()
-        
-        # get the training data
-        self.features = [44, 69, 95, 188, 195, 430, 472, 500, 531, 536, 539, 542, 549, 561, 568, 577, 580]
-        self.feature_names = ['lowLevel.pitch_instantaneous_confidence.dmean2', 'lowLevel.silence_rate_30dB.skew', 'lowLevel.spectral_crest.dvar2', 'lowLevel.spectral_spread.skew', 'lowLevel.spectral_strongpeak.skew', 'lowLevel.mfcc.dmean2.6', 'lowLevel.mfcc.mean.9', 'lowLevel.mfcc.stdev.11', 'lowLevel.sccoeffs.mean.5', 'lowLevel.sccoeffs.skew.4', 'lowLevel.sccoeffs.stdev.1', 'lowLevel.sccoeffs.stdev.4', 'lowLevel.scvalleys.dmean.5', 'lowLevel.scvalleys.dvar.5', 'lowLevel.scvalleys.mean.0', 'lowLevel.scvalleys.skew.3', 'lowLevel.scvalleys.stdev.0']
-        featureVectors, classList, featureNames = partitionSelectData('datasets/features_BF200.csv', self.features)
+
+        fa = open('datasets/features_BF200.csv','r')
+        self.header = fa.readline().split(',')
+        bf_data = np.loadtxt(fa,delimiter=",")
+
+        train_y = bf_data[:,-1:]
+        train_X = bf_data[:,0:-1]
+
+        # verify correct training data length
+        assert len(train_y) == len(train_X)
+
+        # masks to select features
+        self.mask = [49, 71, 77, 88, 95, 104, 125, 144, 153, 173, 216, 247, 255, 482, 561, 568, 580]
+
+        # apply mask to get select features only
+        self.train_X = [x[self.mask] for x in self.train_X]
 
         # create model, scale the data using a pipeline 
         # computes the mean and standard deviation on the training set so as to be able to later re-apply the same transformation on the testing set
-        self.pipe = make_pipeline(StandardScaler(), svm.SVC(kernel = 'rbf', C=1, probability = True))
+        self.pipe = make_pipeline(StandardScaler(), svm.SVC(C=0.12742749857031335, kernel='linear'))
         # train the model
-        self.pipe.fit(featureVectors, classList) 
-        print('model fit')
+        self.pipe.fit(train_X, train_y) 
+        print('model fit succesfully')
     
     def predict(self, features):
         return self.pipe.predict([features])
