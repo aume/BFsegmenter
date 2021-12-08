@@ -1,9 +1,6 @@
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 
-arousal_mask = [1, 14, 29, 30, 33, 35, 41, 47, 84, 87, 89, 90, 91, 93, 127, 128, 131, 132, 138, 140, 144, 166, 184, 191, 195, 199, 207, 216, 231, 236, 243, 245, 258, 261, 262, 263, 342, 343, 345, 351, 361, 373, 379, 393, 395, 398, 433, 437, 453, 463, 482, 486, 489, 502, 504, 517, 522, 526, 527, 528, 529, 540, 549, 553, 558, 561, 565, 572, 573, 585, 589, 594]
-valence_mask = [12, 24, 29, 30, 33, 45, 49, 85, 86, 89, 94, 106, 107, 118, 128, 134, 135, 140, 152, 159, 166, 185, 188, 195, 225, 232, 253, 254, 255, 259, 262, 349, 360, 374, 377, 380, 382, 387, 388, 389, 424, 437, 438, 445, 459, 466, 467, 470, 472, 480, 494, 498, 520, 531, 533, 535, 536, 537, 540, 555, 561, 567, 575, 579, 589, 593, 604]
-
 class AffectPredict:
     def __init__(self):
         fa = open('datasets/arousal_data.csv','r')
@@ -25,12 +22,12 @@ class AffectPredict:
         assert len(self.valence_X) == len(self.valence_y)
 
         # masks to select features
-        self.arousal_mask = arousal_mask
-        self.valence_mask = valence_mask
+        self.arousal_mask = [1, 14, 29, 30, 33, 35, 41, 47, 84, 87, 89, 90, 91, 93, 127, 128, 131, 132, 138, 140, 144, 166, 184, 191, 195, 199, 207, 216, 231, 236, 243, 245, 258, 261, 262, 263, 342, 343, 345, 351, 361, 373, 379, 393, 395, 398, 433, 437, 453, 463, 482, 486, 489, 502, 504, 517, 522, 526, 527, 528, 529, 540, 549, 553, 558, 561, 565, 572, 573, 585, 589, 594]
+        self.valence_mask = [12, 24, 29, 30, 33, 45, 49, 85, 86, 89, 94, 106, 107, 118, 128, 134, 135, 140, 152, 159, 166, 185, 188, 195, 225, 232, 253, 254, 255, 259, 262, 349, 360, 374, 377, 380, 382, 387, 388, 389, 424, 437, 438, 445, 459, 466, 467, 470, 472, 480, 494, 498, 520, 531, 533, 535, 536, 537, 540, 555, 561, 567, 575, 579, 589, 593, 604]
 
         # apply mask to get select features only
-        self.arousal_X = [x[arousal_mask] for x in self.arousal_X]
-        self.valence_X = [x[valence_mask] for x in self.valence_X]
+        self.arousal_X = [x[self.arousal_mask] for x in self.arousal_X]
+        self.valence_X = [x[self.valence_mask] for x in self.valence_X]
 
         # create arousal model
         self.arousal_model = RandomForestRegressor(max_depth=40, min_samples_split=5, oob_score=True)
