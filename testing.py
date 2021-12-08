@@ -11,4 +11,5 @@ for filename in os.listdir(foldername):
     path = foldername + '/' + filename
     windowData = s1.segment(path)
     for item in windowData:
-        print('\n %f %f %f %s\t arousal: %f valence: %f'% (item['start'], item['end'], item['duration'], item['type'], item['arousal'], item['valence']))
+        # print('\n %f %f %f %s\t arousal: %f valence: %f'% (item['start'], item['end'], item['duration'], item['type'], item['arousal'], item['valence']))
+        print('%f %f %f %s'% (item['start'], item['end'], item['duration'], item['type']))

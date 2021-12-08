@@ -26,11 +26,12 @@ class Segmenter:
         self.clf = bf_classifier.BFClassifier()
         self.afp = affect_predictor.AffectPredict()
 
-        self.windowDuration = 0.5 # analysis window length in seconds
+        self.windowDuration = 1.5 # analysis window length in seconds
         self.sampleRate = 44100  # sample rate
         self.frameSize = 2048  # samples in each frame
         self.hopSize = 1024
         self.windowSize = int(self.sampleRate * self.windowDuration)
+        self.adjustedWindow = (self.windowSize // self.frameSize) * self.frameSize
 
         # the essentia engine make sure that the features were extracted under the same conditions as the training data
         self.engine = EssentiaEngine(self.sampleRate, self.frameSize, self.hopSize)
@@ -69,13 +70,14 @@ class Segmenter:
         print('audio len: ', len(audio))
         print('number frames total: ', len(audio)/self.frameSize)
         print('window size: ', self.windowSize)
+        print('frame adjusted window size: ', self.adjustedWindow)
 
         # translate type naming convention from csv to database 
-        types = {'background': 'back', 'foreground': 'fore', 'bafoground': 'backfore'}
+        types = {1: 'fore', 2: 'back', 3: 'backfore'}
 
         processed = []  # storage for the classified segments
 
-        for window in FrameGenerator(audio, frameSize=self.windowSize, hopSize=self.windowSize, startFromZero=True, lastFrameToEndOfFile=True):
+        for window in FrameGenerator(audio, frameSize=self.adjustedWindow, hopSize=self.adjustedWindow, startFromZero=True, lastFrameToEndOfFile=True):
             # extract all features
             pool = self.engine.extractor(window)
             aggrigatedPool = essentia.standard.PoolAggregator(defaultStats=['mean', 'stdev', 'skew', 'dmean', 'dvar', 'dmean2', 'dvar2'])(pool)
@@ -84,9 +86,6 @@ class Segmenter:
             # narrow everything down to select features
             features_dict = {}
             descriptorNames = aggrigatedPool.descriptorNames()
-
-            values = []
-            descriptorList = []
 
             # unpack features in lists 
             for descriptor in descriptorNames:
@@ -113,13 +112,13 @@ class Segmenter:
             vect = np.array(list(features_dict.values()))
 
             # filter the values for bf prediction
-            vect = vect[self.clf.features]
+            vect = vect[self.clf.mask]
 
             classification = types[self.clf.predict(vect)[0]]
             prob = self.clf.predictProb(vect)
 
-            start_time = float(windowCount * self.windowSize)/float(self.sampleRate)
-            end_time = float((windowCount+1) * self.windowSize)/float(self.sampleRate)
+            start_time = float(windowCount * self.adjustedWindow)/float(self.sampleRate)
+            end_time = float((windowCount+1) * self.adjustedWindow)/float(self.sampleRate)
 
             windowCount +=1
 
