@@ -4,7 +4,7 @@ import numpy as np
 
 from pylab import plot, show, figure, imshow
 import matplotlib.pyplot as plt
-plt.rcParams['figure.figsize'] = (15, 6) # set plot sizes to something larger than default
+plt.rcParams['figure.figsize'] = (30, 15) # set plot sizes to something larger than default
 import essentia.standard
 import matplotlib.patches as patches
 
@@ -73,9 +73,9 @@ def plotaudio(filename, path, segversions):
             # Create a Rectangle patch
             rect = patches.Rectangle((start, -1), dur, 2, linewidth=1, color=color)
             axs[index].add_patch(rect)
-            axs[index].text(start, 0.95, shortCategoryNames[category])
+            axs[index].text(start, 0.85, shortCategoryNames[category])
             axs[index].plot(audio[:], color='b')
-            axs[index].set_title('Filter window: ' + str(index+1), loc='left')
+            axs[index].set_title('Filter window: ' + str(index), loc='left')
 
     # plt.title('Displaying audio: %s' % filename)
     show()
