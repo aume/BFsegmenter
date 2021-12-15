@@ -51,9 +51,6 @@ def plotaudio(filename, path, segments):
         start = segment[0] * sample_rate
         dur = segment[1] * sample_rate
         category = segment[2]
-        print('start %s' % start)
-        print('dur %s' % dur)
-        print('category %s' % category)
         # determine color
         if category == 'fore':
             color = foreground_color

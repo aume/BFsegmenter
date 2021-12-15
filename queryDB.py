@@ -1,5 +1,6 @@
 import sqlite3
 from sqlite3 import Error
+import os
 
 myfiles = ['1013.mp3', '2597.mp3', '3205.mp3', '22818.mp3', '24325.mp3', '184640.mp3', '184751.mp3']
 
@@ -67,6 +68,9 @@ def getfilesmatch(conn):
 
     return 
 
+# dir = 'NewAudioFiles/NewAudioFiles'
+dir = 'TestSounds'
+
 def main():
     database = r'aume_Freesound_Currated.sqlite'
 
@@ -75,9 +79,17 @@ def main():
 
     with conn:
         ids = {}
-        for file in myfiles:
-            fileid = getFileId(conn, file)
-            ids[file] = fileid
+        # for file in myfiles:
+        #     fileid = getFileId(conn, file)
+        #     ids[file] = fileid
+        
+        for file in os.listdir(dir):
+            try:
+                print(file)
+                fileid = getFileId(conn, file)
+                ids[file] = fileid
+            except:
+                print('no file %s in db'% file)
 
         print('get segemnts...')
         for file, id in ids.items():
