@@ -41,7 +41,7 @@ class Segmenter:
         segments = self.extractRegions(afile)
 
         # segment filtering
-        segments = self.marginSmoothing(segments)
+        # segments = self.marginSmoothing(segments)
 
         segments = self.foregroundExpansion(segments)
         segments = self.foregroundClustering(segments)
@@ -140,6 +140,7 @@ class Segmenter:
                                 'end': end_time, 'feats': features_dict, 'count': 1})
         return processed
 
+    # test method
     def marginSmoothing(self, processed):
         smoothingDepth = 3
         numSegments = len(processed)
@@ -153,11 +154,6 @@ class Segmenter:
             processed[0]['type'] = max(labels, key=labels.get)
 
         if processed[-1]['type'] == 'fore':
-            print('CHANGING FRONT END')
-            print('length: ', numSegments)
-            labels={'fore':0, 'back':0, 'backfore':0}
-            # get average of classes in the smoothing depth
-            print('length: ', numSegments)
             labels={'fore':0, 'back':0, 'backfore':0}
             # get average of classes in the smoothing depth
             for i in range(max(0, numSegments-smoothingDepth-1), numSegments-1):
