@@ -30,7 +30,8 @@ class Segmenter:
 
         self.smoothing_window = 1
         self.medianFilter_span = 3
-        self.filterWindow = 7
+
+        self.filterWindow = 3
 
         # the essentia engine make sure that the features were extracted under the same conditions as the training data
         self.engine = EssentiaEngine(self.sampleRate, self.frameSize, self.hopSize)
@@ -40,6 +41,8 @@ class Segmenter:
         segments = self.extractRegions(afile)
 
         # segment filtering
+        segments = self.marginSmoothing(segments)
+
         segments = self.foregroundExpansion(segments)
         segments = self.foregroundClustering(segments)
 
@@ -137,7 +140,39 @@ class Segmenter:
                                 'end': end_time, 'feats': features_dict, 'count': 1})
         return processed
 
-    # K Means clustering - renaming segments giving preference to foreground (default val of 3)
+    def marginSmoothing(self, processed):
+        smoothingDepth = 3
+        numSegments = len(processed)
+        if processed[0]['type'] == 'fore':
+            labels={'fore':0, 'back':0, 'backfore':0}
+            # get average of classes in the smoothing depth
+            for i in range(1, min(smoothingDepth+1, numSegments)):
+                categ = processed[i]['type']
+                labels[categ] += 1
+            # assign the most common type within smoothing depth to the beginning
+            processed[0]['type'] = max(labels, key=labels.get)
+
+        if processed[-1]['type'] == 'fore':
+            print('CHANGING FRONT END')
+            print('length: ', numSegments)
+            labels={'fore':0, 'back':0, 'backfore':0}
+            # get average of classes in the smoothing depth
+            print('length: ', numSegments)
+            labels={'fore':0, 'back':0, 'backfore':0}
+            # get average of classes in the smoothing depth
+            for i in range(max(0, numSegments-smoothingDepth-1), numSegments-1):
+                print('i = ', i)
+                categ = processed[i]['type']
+                labels[categ] += 1
+            # assign the most common type within smoothing depth to the beginning
+            processed[-1]['type'] = max(labels, key=labels.get)
+            print(labels)
+
+        return processed
+
+
+    # anterior foreground expansion, reclassify segments before fg segments as fg if they fall under a certain probability difference
+    # aims to include the beginning of fg sounds in the fg cluster
     def foregroundExpansion(self, processed, k_depth = 3):
         for index in range(0,len(processed)):
             # If we have a fg
