@@ -219,9 +219,11 @@ class Segmenter:
         import operator
         filtered = []
         for i in range(0,len(segments),1):
-            if segments[i]['type'] == 'fore':
-                filtered.append('fore')
-                continue
+            # if segments[i]['type'] == 'fore':
+            if (segments[i]['type'] == 'fore'):
+                if(i > 1 and i < len(segments) - 2):
+                    filtered.append('fore')
+                    continue
             labels={'fore':0, 'back':0, 'backfore':0}
             for j in range(max(0,i-self.filterWindow), min(i+self.filterWindow,len(segments)), 1):
                 k = segments[j]['type']
