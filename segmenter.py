@@ -50,7 +50,6 @@ class Segmenter:
         # segments = self.max_posterior(segments, self.medianFilter_span)
 
         segments = self.medianFiltering(segments)
-
         segments = self.foregroundClustering(segments)
 
 
@@ -103,41 +102,51 @@ class Segmenter:
 
             # unpack features in lists 
             for descriptor in descriptorNames:
+                # little to no values in these features, ignore
                 if('tonal' in descriptor or 'rhythm' in descriptor):
                     continue
                 value = aggrigatedPool[descriptor]
+                # unpack arrays
                 if (str(type(value)) == "<class 'numpy.ndarray'>"):
                     for idx, subVal in enumerate(value):
                         features_dict[descriptor + '.' + str(idx)] = subVal
                     continue
+                #ignore strings
+                elif(isinstance(value,str)):
+                    pass
+                # add singular values
                 else:
-                    if(isinstance(value,str)):
-                        pass
-                    else:
-                        features_dict[descriptor] = value
-
-            # filter features for bafo prediction TODO
+                    features_dict[descriptor] = value
 
             # reset counter and clear pool
             pool.clear()
             aggrigatedPool.clear()
 
-            # prepare feature values to predict the class
+            # prepare dictionary for filtering
             vect = np.array(list(features_dict.values()))
+            fnames = np.array(list(features_dict.keys()))
 
-            # filter the values for bf prediction
-            vect = vect[self.clf.mask]
+            # filter the features for bf prediction
+            vect_filtered = vect[self.clf.mask]
 
-            classification = types[self.clf.predict(vect)[0]]
-            prob = self.clf.predictProb(vect)
+            # filter the feature dictionary to store only select features
+            fnames_filtered = fnames[self.clf.mask]
+
+            # create filtered dictionary for the database
+            features_filtered = {}
+            for idx, val in enumerate(vect_filtered):
+                features_filtered[fnames_filtered[idx]] = val
+
+            # get the classification and probabilies
+            classification = types[self.clf.predict(vect_filtered)[0]]
+            prob = self.clf.predictProb(vect_filtered)
 
             start_time = float(windowCount * self.adjustedWindow)/float(self.sampleRate)
             end_time = float((windowCount+1) * self.adjustedWindow)/float(self.sampleRate)
 
             windowCount +=1
 
-            processed.append({'type': classification, 'probabilities': prob, 'start': start_time,
-                                'end': end_time, 'feats': features_dict, 'count': 1})
+            processed.append({'type': classification, 'probabilities': prob, 'start': start_time, 'end': end_time, 'feats_select':features_filtered, 'vector':vect, 'count': 1})
         return processed
 
     # test method
@@ -289,8 +298,8 @@ class Segmenter:
         for i in range(1, len(processed), 1):
             if processed[i]['type'] == processed[i-1]['type']:  # if its the same
                 processed[i]['start'] = processed[i - 1]['start']  # update the start time
-                processed[i]['feats'] = self.sumFeatureDics(
-                    processed[i]['feats'], processed[i-1]['feats'])
+                processed[i]['feats_select'] = self.sumFeatureDics(
+                    processed[i]['feats_select'], processed[i-1]['feats_select'])
                 processed[i]['count'] += processed[i-1]['count']
                 processed[i-1]['type'] = 'none'  # nullify the previos segment
             else:
@@ -303,22 +312,20 @@ class Segmenter:
         region_data = []
         for i in processed:
             if i['type'] != 'none':
+                print(i)
                 temp = {}
                 temp['type'] = i['type']
                 temp['duration'] = i['end'] - i['start']  # duration
                 temp['start'] = i['start']
                 temp['end'] = i['end']
-                temp['feats'] = self.avgDicItems(i['feats'], i['count'])
+                temp['feats_select'] = self.avgDicItems(i['feats_select'], i['count'])
                 # unpack features and apply masks for valence and arousal
-                f = temp['feats']
-                vect = np.array(list(f.values()))
+                vect = i['vector']
                 arousal_vect = vect[self.afp.arousal_mask]
                 valence_vect = vect[self.afp.valence_mask]
                 temp['arousal'] = self.afp.predict_arousal(arousal_vect)
                 temp['valence'] = self.afp.predict_valence(valence_vect)
-
-                temp['probabilities'] = i['probabilities'] #remove after testign
-
+                temp['probabilities'] = i['probabilities'] #remove after testign TODO
                 region_data.append(temp)
         return region_data
 
