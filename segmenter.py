@@ -28,6 +28,11 @@ class Segmenter:
         self.windowSize = int(self.sampleRate * self.windowDuration)
         self.adjustedWindow = (self.windowSize // self.frameSize) * self.frameSize
 
+        self.smoothing_window = 1
+        self.medianFilter_span = 3
+
+        self.filterWindow = 3
+
         # the essentia engine make sure that the features were extracted under the same conditions as the training data
         self.engine = EssentiaEngine(self.sampleRate, self.frameSize, self.hopSize)
 
@@ -35,10 +40,20 @@ class Segmenter:
     def segment(self, afile):
         segments = self.extractRegions(afile)
 
-        segments = self.smoothProbabilities(segments)
-        segments = self.max_posterior(segments)
-        
-        segments = self.Clustering(segments)
+        # segment filtering
+        # segments = self.marginSmoothing(segments)
+
+        segments = self.foregroundExpansion(segments)
+        segments = self.foregroundClustering(segments)
+
+        # segments = self.smoothProbabilities(segments, self.smoothing_window)
+        # segments = self.max_posterior(segments, self.medianFilter_span)
+
+        segments = self.medianFiltering(segments)
+        segments = self.foregroundClustering(segments)
+
+
+        # join segments
         segments = self.conjunction(segments)
         return segments
 
@@ -87,60 +102,116 @@ class Segmenter:
 
             # unpack features in lists 
             for descriptor in descriptorNames:
+                # little to no values in these features, ignore
                 if('tonal' in descriptor or 'rhythm' in descriptor):
                     continue
                 value = aggrigatedPool[descriptor]
+                # unpack arrays
                 if (str(type(value)) == "<class 'numpy.ndarray'>"):
                     for idx, subVal in enumerate(value):
                         features_dict[descriptor + '.' + str(idx)] = subVal
                     continue
+                #ignore strings
+                elif(isinstance(value,str)):
+                    pass
+                # add singular values
                 else:
-                    if(isinstance(value,str)):
-                        pass
-                    else:
-                        features_dict[descriptor] = value
-
-            # filter features for bafo prediction TODO
+                    features_dict[descriptor] = value
 
             # reset counter and clear pool
             pool.clear()
             aggrigatedPool.clear()
 
-            # prepare feature values to predict the class
+            # prepare dictionary for filtering
             vect = np.array(list(features_dict.values()))
+            fnames = np.array(list(features_dict.keys()))
 
-            # filter the values for bf prediction
-            vect = vect[self.clf.mask]
+            # filter the features for bf prediction
+            vect_filtered = vect[self.clf.mask]
 
-            classification = types[self.clf.predict(vect)[0]]
-            prob = self.clf.predictProb(vect)
+            # filter the feature dictionary to store only select features
+            fnames_filtered = fnames[self.clf.mask]
+
+            # create filtered dictionary for the database
+            features_filtered = {}
+            for idx, val in enumerate(vect_filtered):
+                features_filtered[fnames_filtered[idx]] = val
+
+            # get the classification and probabilies
+            classification = types[self.clf.predict(vect_filtered)[0]]
+            prob = self.clf.predictProb(vect_filtered)
 
             start_time = float(windowCount * self.adjustedWindow)/float(self.sampleRate)
             end_time = float((windowCount+1) * self.adjustedWindow)/float(self.sampleRate)
 
             windowCount +=1
 
-            processed.append({'type': classification, 'probabilities': prob, 'start': start_time,
-                                'end': end_time, 'feats': features_dict, 'count': 1})
+            processed.append({'type': classification, 'probabilities': prob, 'start': start_time, 'end': end_time, 'feats_select':features_filtered, 'vector':vect, 'count': 1})
+        return processed
+
+    # test method
+    def marginSmoothing(self, processed):
+        smoothingDepth = 3
+        numSegments = len(processed)
+        if processed[0]['type'] == 'fore':
+            labels={'fore':0, 'back':0, 'backfore':0}
+            # get average of classes in the smoothing depth
+            for i in range(1, min(smoothingDepth+1, numSegments)):
+                categ = processed[i]['type']
+                labels[categ] += 1
+            # assign the most common type within smoothing depth to the beginning
+            processed[0]['type'] = max(labels, key=labels.get)
+
+        if processed[-1]['type'] == 'fore':
+            labels={'fore':0, 'back':0, 'backfore':0}
+            # get average of classes in the smoothing depth
+            for i in range(max(0, numSegments-smoothingDepth-1), numSegments-1):
+                print('i = ', i)
+                categ = processed[i]['type']
+                labels[categ] += 1
+            # assign the most common type within smoothing depth to the beginning
+            processed[-1]['type'] = max(labels, key=labels.get)
+            print(labels)
+
+        return processed
+
+
+    # anterior foreground expansion, reclassify segments before fg segments as fg if they fall under a certain probability difference
+    # aims to include the beginning of fg sounds in the fg cluster
+    def foregroundExpansion(self, processed, k_depth = 3):
+        for index in range(0,len(processed)):
+            # If we have a fg
+            if processed[index]['type'] == 'fore':
+                print('we have detected a fg at index %d'% index)
+                # check the previous
+                prev = index - 1
+                if prev >= 0:
+                    prev_probs = processed[prev]['probabilities'][0]
+                    print('previous probabilities are: ', prev_probs)
+                    difference = max(prev_probs) - prev_probs[0]
+                    print('difference is ', difference)
+                    if difference < 1:
+                        print('CHANGING index %d TO FG'% prev)
+                        processed[prev]['type'] = 'fore'
         return processed
 
     # K Means clustering - renaming segments giving preference to foreground (default val of 3)
-    def Clustering(self, processed, k_depth = 3):
+    def foregroundClustering(self, processed, k_depth = 3):
         start = 0
         while start < len(processed):
             # If we have a fg
-            if processed[start]['type'] == 'foreground':
+            if processed[start]['type'] == 'fore':
                 log_a = log_b =start
                 # Go through k deep and save the idx of furthest fg within k
                 for i in range(start+1, start+k_depth+1, 1):
                     if i < len(processed):
                         categ = processed[i]['type']
-                        if categ == 'foreground':
+                        if categ == 'fore':
                             log_b = i
                 # now we overwrite the types between the two detected foregrounds if we found one
                 if log_b - log_a > 0:
                     for j in range(log_a, log_b+1,1): 
-                            processed[j]['type'] = 'foreground'
+                            processed[j]['type'] = 'fore'
                     start = log_b
                 # we didnt find a fg withing the k window
                 # continue and skip remeinder of the window since theres no fg within it
@@ -151,9 +222,34 @@ class Segmenter:
                 start += 1
         return processed
 
+    def medianFiltering(self, segments):
+        if(self.filterWindow == 0):
+            return segments
+        import operator
+        filtered = []
+        for i in range(0,len(segments),1):
+            # if segments[i]['type'] == 'fore':
+            if (segments[i]['type'] == 'fore'):
+                if(i > 1 and i < len(segments) - 2):
+                    filtered.append('fore')
+                    continue
+            labels={'fore':0, 'back':0, 'backfore':0}
+            for j in range(max(0,i-self.filterWindow), min(i+self.filterWindow,len(segments)), 1):
+                k = segments[j]['type']
+                labels[k] = labels[k] + 1
+            maxlabel = max(labels.items(), key=operator.itemgetter(1))[0]
+            filtered.append(maxlabel)
+
+        for i in range(0,len(segments),1):
+            if segments[i]['type'] != filtered[i]:
+               print (i,'change',segments[i]['type'])
+               segments[i]['type'] = filtered[i]
+               print (' to ',segments[i]['type'])
+
+        return segments
 
     # a simple median filtering
-    def max_posterior(self, processed, m_span=5):
+    def max_posterior(self, processed, m_span):
         import operator
         medWin = m_span#int(floor(m_span/2))
         filtered = []
@@ -175,42 +271,7 @@ class Segmenter:
 
         return processed
 
-    # Here we join up any same labelled adjacent regions
-    def conjunction(self, processed):
-        for i in range(1, len(processed), 1):
-            if processed[i]['type'] == processed[i-1]['type']:  # if its the same
-                processed[i]['start'] = processed[i - 1]['start']  # update the start time
-                processed[i]['feats'] = self.sumFeatureDics(
-                    processed[i]['feats'], processed[i-1]['feats'])
-                processed[i]['count'] += processed[i-1]['count']
-                processed[i-1]['type'] = 'none'  # nullify the previos segment
-            else:
-                pass
-            
-        print('Finished conjunction')
-        return self.finalize_regions(processed)
-
-    def finalize_regions(self, processed):
-        region_data = []
-        for i in processed:
-            if i['type'] != 'none':
-                temp = {}
-                temp['type'] = i['type']
-                temp['duration'] = i['end'] - i['start']  # duration
-                temp['start'] = i['start']
-                temp['end'] = i['end']
-                temp['feats'] = self.avgDicItems(i['feats'], i['count'])
-                # unpack features and apply masks for valence and arousal
-                f = temp['feats']
-                vect = np.array(list(f.values()))
-                arousal_vect = vect[self.afp.arousal_mask]
-                valence_vect = vect[self.afp.valence_mask]
-                temp['arousal'] = self.afp.predict_arousal(arousal_vect)
-                temp['valence'] = self.afp.predict_valence(valence_vect)
-                region_data.append(temp)
-        return region_data
-
-    def smoothProbabilities(self, processed, winSize=3):
+    def smoothProbabilities(self, processed, winSize=200):
         a = np.array(processed[0]['probabilities'])
         
         for i in range(0,len(processed),1):
@@ -229,6 +290,44 @@ class Segmenter:
             index, value = max(enumerate(a[i]), key=operator.itemgetter(1))
             processed[i]['type']=labels[index]
         return processed
+
+    
+
+        # Here we join up any same labelled adjacent regions
+    def conjunction(self, processed):
+        for i in range(1, len(processed), 1):
+            if processed[i]['type'] == processed[i-1]['type']:  # if its the same
+                processed[i]['start'] = processed[i - 1]['start']  # update the start time
+                processed[i]['feats_select'] = self.sumFeatureDics(
+                    processed[i]['feats_select'], processed[i-1]['feats_select'])
+                processed[i]['count'] += processed[i-1]['count']
+                processed[i-1]['type'] = 'none'  # nullify the previos segment
+            else:
+                pass
+            
+        print('Finished conjunction')
+        return self.finalize_regions(processed)
+
+    def finalize_regions(self, processed):
+        region_data = []
+        for i in processed:
+            if i['type'] != 'none':
+                print(i)
+                temp = {}
+                temp['type'] = i['type']
+                temp['duration'] = i['end'] - i['start']  # duration
+                temp['start'] = i['start']
+                temp['end'] = i['end']
+                temp['feats_select'] = self.avgDicItems(i['feats_select'], i['count'])
+                # unpack features and apply masks for valence and arousal
+                vect = i['vector']
+                arousal_vect = vect[self.afp.arousal_mask]
+                valence_vect = vect[self.afp.valence_mask]
+                temp['arousal'] = self.afp.predict_arousal(arousal_vect)
+                temp['valence'] = self.afp.predict_valence(valence_vect)
+                temp['probabilities'] = i['probabilities'] #remove after testign TODO
+                region_data.append(temp)
+        return region_data
 
     def avgDicItems(self, D, a):
         result = {}
