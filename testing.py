@@ -1,16 +1,17 @@
+import matplotlib.patches as patches
+import essentia.standard
 from segmenter import Segmenter
 import os
 import numpy as np
 
 from pylab import plot, show, figure, imshow
 import matplotlib.pyplot as plt
-plt.rcParams['figure.figsize'] = (15, 6) # set plot sizes to something larger than default
-import essentia.standard
-import matplotlib.patches as patches
+# set plot sizes to something larger than default
+plt.rcParams['figure.figsize'] = (15, 6)
 
 # program for testing and tuning segmentation
-
 sample_rate = 22500
+
 
 def main():
     s1 = Segmenter()
@@ -24,27 +25,28 @@ def main():
         for item in windowData:
             print(item)
             # print('\n %f %f %f %s\t arousal: %f valence: %f'% (item['start'], item['end'], item['duration'], item['type'], item['arousal'], item['valence']))
-            print('%f %f %f %s %s'% (item['start'], item['end'], item['duration'], item['type'], item['probabilities']))
+            print('%f %f %f %s %s' % (
+                item['start'], item['end'], item['duration'], item['type'], item['probabilities']))
             segs.append([item['start'], item['duration'], item['type']])
         plotaudio(filename, path, segs)
 
-def plotaudio(filename, path, segments):
-    foreground_color = '#ff9191' #red
-    background_color = '#91deff' #blue
-    bafoground_color = '#fff7cc' #yellow
 
-    
+def plotaudio(filename, path, segments):
+    foreground_color = '#ff9191'  # red
+    background_color = '#91deff'  # blue
+    bafoground_color = '#fff7cc'  # yellow
 
     print('plotting audio')
-    loader = essentia.standard.MonoLoader(filename=path, sampleRate = sample_rate)
+    loader = essentia.standard.MonoLoader(
+        filename=path, sampleRate=sample_rate)
     audio = loader()
 
     fig, ax = plt.subplots()
 
     shortCategoryNames = {
-        'fore':'f',
-        'back':'b',
-        'backfore':'bf'
+        'fore': 'f',
+        'back': 'b',
+        'backfore': 'bf'
     }
 
     for segment in segments:
@@ -68,6 +70,6 @@ def plotaudio(filename, path, segments):
     plt.title('Displaying audio: %s' % filename)
     show()
 
+
 if __name__ == '__main__':
     main()
-
