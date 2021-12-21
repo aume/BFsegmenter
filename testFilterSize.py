@@ -25,7 +25,7 @@ def main():
         for filterwindow in filterRange:
             print('\nrunning: ', filename)
             path = foldername + '/' + filename
-            s1.filterWindow = filterwindow
+            s1.filter_window = filterwindow
             windowData = s1.segment(path)
             segs = []
             for item in windowData:
