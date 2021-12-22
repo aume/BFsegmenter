@@ -1,6 +1,6 @@
 from essentia_engine import EssentiaEngine
 import bf_classifier
-import bf_regressor
+import bf_ridge
 import affect_predictor
 import numpy as np
 from scipy import ndimage
@@ -13,10 +13,10 @@ class Segmenter:
 
         # create the models
         # self.clf = bf_classifier.BFClassifier()
-        self.clf = bf_regressor.BFRegressor()
+        self.clf = bf_ridge.BFRidge()
         self.afp = affect_predictor.AffectPredict()
 
-        self.window_duration = 2  # analysis window length in seconds
+        self.window_duration = 3  # analysis window length in seconds
         self.sample_rate = 44100  # sample rate
         self.frame_size = 2048  # samples in each frame
         self.hop_size = 1024
@@ -45,8 +45,8 @@ class Segmenter:
         # # segments = self.smoothProbabilities(segments, self.smoothing_window)
         # # segments = self.max_posterior(segments, self.medianFilter_span)
 
-        # segments = self.median_filtering(segments)
-        # segments = self.foreground_clustering(segments)
+        segments = self.foreground_clustering(segments)
+        segments = self.median_filtering(segments)
 
         # join segments
         segments = self.conjunction(segments)
@@ -132,17 +132,19 @@ class Segmenter:
             for idx, val in enumerate(vect_filtered):
                 features_filtered[fnames_filtered[idx]] = val
 
-            # get the classification and probabilies
+            # get the classification
             classification = types[self.clf.predict(vect_filtered)[0]]
-            prob = self.clf.predict_prob(vect_filtered)
+
+            # get probabilities
+            probabilities = self.clf.predict_prob(vect_filtered)
 
             start_time = float(windowCount * self.adjusted_window)/float(self.sample_rate)
             end_time = float((windowCount+1) * self.adjusted_window)/float(self.sample_rate)
 
             windowCount += 1
 
-            processed.append({'type': classification, 'probabilities': prob, 'start': start_time,
-                             'end': end_time, 'feats_select': features_filtered, 'vector': vector, 'count': 1})
+            processed.append({'type': classification, 'start': start_time,
+                             'end': end_time, 'feats_select': features_filtered, 'vector': vector, 'count': 1, 'probabilities':probabilities})
         return processed
 
     # test method
@@ -320,8 +322,8 @@ class Segmenter:
                 temp['arousal'] = self.afp.predict_arousal(arousal_vect)
                 temp['valence'] = self.afp.predict_valence(valence_vect)
 
-                # remove after testign TODO
                 temp['probabilities'] = i['probabilities']
+
                 region_data.append(temp)
         return region_data
 

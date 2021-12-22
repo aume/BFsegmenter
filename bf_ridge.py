@@ -40,6 +40,9 @@ class BFRidge(object):
         return self.pipe.predict([features])
 
     def predict_prob(self, features):
-        return self.pipe.predict_log_proba([features])
+        d = self.pipe.decision_function([features])
+        probs = np.exp(d) / np.sum(np.exp(d))
+        return probs[0]
+
 
     

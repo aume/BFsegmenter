@@ -23,10 +23,9 @@ def main():
         windowData = s1.segment(path)
         segs = []
         for item in windowData:
-            print(item)
             # print('\n %f %f %f %s\t arousal: %f valence: %f'% (item['start'], item['end'], item['duration'], item['type'], item['arousal'], item['valence']))
-            print('%f %f %f %s %s' % (
-                item['start'], item['end'], item['duration'], item['type'], item['probabilities']))
+            print('%f %f %f %s' % (
+                item['start'], item['end'], item['duration'], item['type']))
             segs.append([item['start'], item['duration'], item['type']])
         plotaudio(filename, path, segs)
 
