@@ -1,5 +1,6 @@
 from essentia_engine import EssentiaEngine
 import bf_classifier
+import bf_regressor
 import affect_predictor
 import numpy as np
 from scipy import ndimage
@@ -11,10 +12,11 @@ class Segmenter:
     def __init__(self):
 
         # create the models
-        self.clf = bf_classifier.BFClassifier()
+        # self.clf = bf_classifier.BFClassifier()
+        self.clf = bf_regressor.BFRegressor()
         self.afp = affect_predictor.AffectPredict()
 
-        self.window_duration = 1.5  # analysis window length in seconds
+        self.window_duration = 2  # analysis window length in seconds
         self.sample_rate = 44100  # sample rate
         self.frame_size = 2048  # samples in each frame
         self.hop_size = 1024
@@ -37,14 +39,14 @@ class Segmenter:
         # segment filtering
         # segments = self.marginSmoothing(segments)
 
-        segments = self.foreground_expansion(segments)
-        segments = self.foreground_clustering(segments)
+        # segments = self.foreground_expansion(segments)
+        # segments = self.foreground_clustering(segments)
 
-        # segments = self.smoothProbabilities(segments, self.smoothing_window)
-        # segments = self.max_posterior(segments, self.medianFilter_span)
+        # # segments = self.smoothProbabilities(segments, self.smoothing_window)
+        # # segments = self.max_posterior(segments, self.medianFilter_span)
 
-        segments = self.median_filtering(segments)
-        segments = self.foreground_clustering(segments)
+        # segments = self.median_filtering(segments)
+        # segments = self.foreground_clustering(segments)
 
         # join segments
         segments = self.conjunction(segments)
@@ -120,10 +122,10 @@ class Segmenter:
             fnames = np.array(list(features_dict.keys()))
 
             # filter the features for bf prediction
-            vect_filtered = vector[self.clf.MASK]
+            vect_filtered = vector
 
             # filter the feature dictionary to store only select features
-            fnames_filtered = fnames[self.clf.MASK]
+            fnames_filtered = fnames
 
             # create filtered dictionary for the database
             features_filtered = {}
