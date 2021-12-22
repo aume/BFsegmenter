@@ -37,10 +37,7 @@ class Segmenter:
         segments = self.extract_regions(afile)
 
         # segment filtering
-        # segments = self.marginSmoothing(segments)
-
-        # segments = self.foreground_expansion(segments)
-        # segments = self.foreground_clustering(segments)
+        segments = self.margin_smoothing(segments)
 
         # # segments = self.smoothProbabilities(segments, self.smoothing_window)
         # # segments = self.max_posterior(segments, self.medianFilter_span)
@@ -149,7 +146,7 @@ class Segmenter:
 
     # test method
     def margin_smoothing(self, processed):
-        smoothing_depth = 3
+        smoothing_depth = 2
         num_segments = len(processed)
         if processed[0]['type'] == 'fore':
             labels = {'fore': 0, 'back': 0, 'backfore': 0}
@@ -169,32 +166,11 @@ class Segmenter:
                 labels[categ] += 1
             # assign the most common type within smoothing depth to the beginning
             processed[-1]['type'] = max(labels, key=labels.get)
-            print(labels)
 
-        return processed
-
-    # anterior foreground expansion, reclassify segments before fg segments as fg if they fall under a certain probability difference
-    # aims to include the beginning of fg sounds in the fg cluster
-
-    def foreground_expansion(self, processed, k_depth=3):
-        for index in range(0, len(processed)):
-            # If we have a fg
-            if processed[index]['type'] == 'fore':
-                print('we have detected a fg at index %d' % index)
-                # check the previous
-                prev = index - 1
-                if prev >= 0:
-                    prev_probs = processed[prev]['probabilities'][0]
-                    print('previous probabilities are: ', prev_probs)
-                    difference = max(prev_probs) - prev_probs[0]
-                    print('difference is ', difference)
-                    if difference < 1:
-                        print('CHANGING index %d TO FG' % prev)
-                        processed[prev]['type'] = 'fore'
         return processed
 
     # K Means clustering - renaming segments giving preference to foreground (default val of 3)
-    def foreground_clustering(self, processed, k_depth=3):
+    def foreground_clustering(self, processed, k_depth=2):
         start = 0
         while start < len(processed):
             # If we have a fg
@@ -226,11 +202,9 @@ class Segmenter:
         import operator
         filtered = []
         for i in range(0, len(segments), 1):
-            # if segments[i]['type'] == 'fore':
             if (segments[i]['type'] == 'fore'):
-                if(i > 1 and i < len(segments) - 2):
-                    filtered.append('fore')
-                    continue
+                filtered.append('fore')
+                continue
             labels = {'fore': 0, 'back': 0, 'backfore': 0}
             for j in range(max(0, i-self.filter_window), min(i+self.filter_window, len(segments)), 1):
                 k = segments[j]['type']
