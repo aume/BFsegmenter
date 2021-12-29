@@ -41,9 +41,11 @@ class Segmenter:
 
         # # segments = self.smoothProbabilities(segments, self.smoothing_window)
         # # segments = self.max_posterior(segments, self.medianFilter_span)
+        # segments = self.median_filtering(segments)
 
-        segments = self.foreground_clustering(segments)
-        segments = self.median_filtering(segments)
+        segments = self.kmeans_clustering(segments, 1, 'fore')
+        segments = self.kmeans_clustering(segments, 1, 'backfore')
+        segments = self.kmeans_clustering(segments, 1, 'back')
 
         # join segments
         segments = self.conjunction(segments)
@@ -170,28 +172,30 @@ class Segmenter:
         return processed
 
     # K Means clustering - renaming segments giving preference to foreground (default val of 3)
-    def foreground_clustering(self, processed, k_depth=2):
+    def kmeans_clustering(self, processed, k_depth, category):
         start = 0
         while start < len(processed):
-            # If we have a fg
-            if processed[start]['type'] == 'fore':
+            if processed[start]['type'] == category:
                 log_a = log_b = start
+                print('start is %d' % start)
                 # Go through k deep and save the idx of furthest fg within k
-                for i in range(start+1, start+k_depth+1, 1):
+                for i in range(start+1, start+k_depth+2, 1):
+                    print('\tchecking range %d to %d' % (start+1, start+k_depth+1))
                     if i < len(processed):
                         categ = processed[i]['type']
-                        if categ == 'fore':
+                        print('\tchecking i at %d' % i)
+                        if categ == category:
                             log_b = i
+                print('\tlogA is %d and logB is %d' % (log_a, log_b))
                 # now we overwrite the types between the two detected foregrounds if we found one
-                if log_b - log_a > 0:
-                    for j in range(log_a, log_b+1, 1):
-                        processed[j]['type'] = 'fore'
+                if log_b - log_a > 1:
+                    for j in range(log_a+1, log_b+1, 1):
+                        processed[j]['type'] = category
                     start = log_b
                 # we didnt find a fg withing the k window
                 # continue and skip remeinder of the window since theres no fg within it
                 else:
                     start += k_depth
-            # not fg, move to next element
             else:
                 start += 1
         return processed

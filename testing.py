@@ -15,7 +15,7 @@ sample_rate = 22500
 
 def main():
     s1 = Segmenter()
-    foldername = 'TestSounds'
+    foldername = 'TestSound'
 
     for filename in os.listdir(foldername):
         print('\nrunning: ', filename)
