@@ -15,7 +15,8 @@ sample_rate = 22500
 
 def main():
     s1 = Segmenter()
-    foldername = 'TestSound'
+    # foldername = 'soundstorage'
+    foldername = 'testsound'
 
 
     for filename in os.listdir(foldername):
@@ -30,11 +31,16 @@ def main():
             print('%f\t%f\t%s' % (
                 item['start'], item['end'], item['type']))
             segs.append([item['start'], item['duration'], item['type']])
-        plotaudio(filename, path, segs)
+        # plotaudio(filename, path, segs)
     
-    # open text file and write label data
-    f = open(filename.replace('.mp3', '_clusering.txt'), 'w')
-    f.write(label_string)
+        # open text file and write label data
+        if('.mp3' in filename):
+            labelname = filename.replace('.mp3', '_clusering.txt')
+        elif('.wav' in  filename):
+            labelname = filename.replace('.wav', '_clusering.txt')
+        f = open('label_output/' + labelname, 'w')
+        f.write(label_string)
+        f.close()
 
 def plotaudio(filename, path, segments):
     foreground_color = '#ff9191'  # red

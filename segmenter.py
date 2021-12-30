@@ -177,16 +177,12 @@ class Segmenter:
         while start < len(processed):
             if processed[start]['type'] == category:
                 log_a = log_b = start
-                print('start is %d' % start)
                 # Go through k deep and save the idx of furthest fg within k
                 for i in range(start+1, start+k_depth+2, 1):
-                    print('\tchecking range %d to %d' % (start+1, start+k_depth+1))
                     if i < len(processed):
                         categ = processed[i]['type']
-                        print('\tchecking i at %d' % i)
                         if categ == category:
                             log_b = i
-                print('\tlogA is %d and logB is %d' % (log_a, log_b))
                 # now we overwrite the types between the two detected foregrounds if we found one
                 if log_b - log_a > 1:
                     for j in range(log_a+1, log_b+1, 1):
