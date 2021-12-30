@@ -17,18 +17,24 @@ def main():
     s1 = Segmenter()
     foldername = 'TestSound'
 
+
     for filename in os.listdir(foldername):
         print('\nrunning: ', filename)
         path = foldername + '/' + filename
         windowData = s1.segment(path)
         segs = []
+        label_string = ''
         for item in windowData:
             # print('\n %f %f %f %s\t arousal: %f valence: %f'% (item['start'], item['end'], item['duration'], item['type'], item['arousal'], item['valence']))
-            print('%f %f %f %s' % (
-                item['start'], item['end'], item['duration'], item['type']))
+            label_string += str(item['start'])+'\t'+str(item['end'])+'\t'+str(item['type'])+'\n'
+            print('%f\t%f\t%s' % (
+                item['start'], item['end'], item['type']))
             segs.append([item['start'], item['duration'], item['type']])
         plotaudio(filename, path, segs)
-
+    
+    # open text file and write label data
+    f = open(filename.replace('.mp3', '_clusering.txt'), 'w')
+    f.write(label_string)
 
 def plotaudio(filename, path, segments):
     foreground_color = '#ff9191'  # red
