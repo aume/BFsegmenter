@@ -1,5 +1,6 @@
 from essentia_engine import EssentiaEngine
 import bf_classifier
+import bf_ridge
 import affect_predictor
 import numpy as np
 from scipy import ndimage
@@ -11,10 +12,11 @@ class Segmenter:
     def __init__(self):
 
         # create the models
-        self.clf = bf_classifier.BFClassifier()
+        # self.clf = bf_classifier.BFClassifier()
+        self.clf = bf_ridge.BFRidge()
         self.afp = affect_predictor.AffectPredict()
 
-        self.window_duration = 1.5  # analysis window length in seconds
+        self.window_duration = 3  # analysis window length in seconds
         self.sample_rate = 44100  # sample rate
         self.frame_size = 2048  # samples in each frame
         self.hop_size = 1024
@@ -35,16 +37,15 @@ class Segmenter:
         segments = self.extract_regions(afile)
 
         # segment filtering
-        # segments = self.marginSmoothing(segments)
+        segments = self.margin_smoothing(segments)
 
-        segments = self.foreground_expansion(segments)
-        segments = self.foreground_clustering(segments)
+        # # segments = self.smoothProbabilities(segments, self.smoothing_window)
+        # # segments = self.max_posterior(segments, self.medianFilter_span)
+        # segments = self.median_filtering(segments)
 
-        # segments = self.smoothProbabilities(segments, self.smoothing_window)
-        # segments = self.max_posterior(segments, self.medianFilter_span)
-
-        segments = self.median_filtering(segments)
-        segments = self.foreground_clustering(segments)
+        segments = self.kmeans_clustering(segments, 1, 'fore')
+        segments = self.kmeans_clustering(segments, 1, 'backfore')
+        segments = self.kmeans_clustering(segments, 1, 'back')
 
         # join segments
         segments = self.conjunction(segments)
@@ -120,32 +121,34 @@ class Segmenter:
             fnames = np.array(list(features_dict.keys()))
 
             # filter the features for bf prediction
-            vect_filtered = vector[self.clf.MASK]
+            vect_filtered = vector
 
             # filter the feature dictionary to store only select features
-            fnames_filtered = fnames[self.clf.MASK]
+            fnames_filtered = fnames
 
             # create filtered dictionary for the database
             features_filtered = {}
             for idx, val in enumerate(vect_filtered):
                 features_filtered[fnames_filtered[idx]] = val
 
-            # get the classification and probabilies
+            # get the classification
             classification = types[self.clf.predict(vect_filtered)[0]]
-            prob = self.clf.predict_prob(vect_filtered)
+
+            # get probabilities
+            probabilities = self.clf.predict_prob(vect_filtered)
 
             start_time = float(windowCount * self.adjusted_window)/float(self.sample_rate)
             end_time = float((windowCount+1) * self.adjusted_window)/float(self.sample_rate)
 
             windowCount += 1
 
-            processed.append({'type': classification, 'probabilities': prob, 'start': start_time,
-                             'end': end_time, 'feats_select': features_filtered, 'vector': vector, 'count': 1})
+            processed.append({'type': classification, 'start': start_time,
+                             'end': end_time, 'feats_select': features_filtered, 'vector': vector, 'count': 1, 'probabilities':probabilities})
         return processed
 
     # test method
     def margin_smoothing(self, processed):
-        smoothing_depth = 3
+        smoothing_depth = 2
         num_segments = len(processed)
         if processed[0]['type'] == 'fore':
             labels = {'fore': 0, 'back': 0, 'backfore': 0}
@@ -165,53 +168,30 @@ class Segmenter:
                 labels[categ] += 1
             # assign the most common type within smoothing depth to the beginning
             processed[-1]['type'] = max(labels, key=labels.get)
-            print(labels)
 
-        return processed
-
-    # anterior foreground expansion, reclassify segments before fg segments as fg if they fall under a certain probability difference
-    # aims to include the beginning of fg sounds in the fg cluster
-
-    def foreground_expansion(self, processed, k_depth=3):
-        for index in range(0, len(processed)):
-            # If we have a fg
-            if processed[index]['type'] == 'fore':
-                print('we have detected a fg at index %d' % index)
-                # check the previous
-                prev = index - 1
-                if prev >= 0:
-                    prev_probs = processed[prev]['probabilities'][0]
-                    print('previous probabilities are: ', prev_probs)
-                    difference = max(prev_probs) - prev_probs[0]
-                    print('difference is ', difference)
-                    if difference < 1:
-                        print('CHANGING index %d TO FG' % prev)
-                        processed[prev]['type'] = 'fore'
         return processed
 
     # K Means clustering - renaming segments giving preference to foreground (default val of 3)
-    def foreground_clustering(self, processed, k_depth=3):
+    def kmeans_clustering(self, processed, k_depth, category):
         start = 0
         while start < len(processed):
-            # If we have a fg
-            if processed[start]['type'] == 'fore':
+            if processed[start]['type'] == category:
                 log_a = log_b = start
                 # Go through k deep and save the idx of furthest fg within k
-                for i in range(start+1, start+k_depth+1, 1):
+                for i in range(start+1, start+k_depth+2, 1):
                     if i < len(processed):
                         categ = processed[i]['type']
-                        if categ == 'fore':
+                        if categ == category:
                             log_b = i
                 # now we overwrite the types between the two detected foregrounds if we found one
-                if log_b - log_a > 0:
-                    for j in range(log_a, log_b+1, 1):
-                        processed[j]['type'] = 'fore'
+                if log_b - log_a > 1:
+                    for j in range(log_a+1, log_b+1, 1):
+                        processed[j]['type'] = category
                     start = log_b
                 # we didnt find a fg withing the k window
                 # continue and skip remeinder of the window since theres no fg within it
                 else:
                     start += k_depth
-            # not fg, move to next element
             else:
                 start += 1
         return processed
@@ -222,11 +202,9 @@ class Segmenter:
         import operator
         filtered = []
         for i in range(0, len(segments), 1):
-            # if segments[i]['type'] == 'fore':
             if (segments[i]['type'] == 'fore'):
-                if(i > 1 and i < len(segments) - 2):
-                    filtered.append('fore')
-                    continue
+                filtered.append('fore')
+                continue
             labels = {'fore': 0, 'back': 0, 'backfore': 0}
             for j in range(max(0, i-self.filter_window), min(i+self.filter_window, len(segments)), 1):
                 k = segments[j]['type']
@@ -318,8 +296,8 @@ class Segmenter:
                 temp['arousal'] = self.afp.predict_arousal(arousal_vect)
                 temp['valence'] = self.afp.predict_valence(valence_vect)
 
-                # remove after testign TODO
                 temp['probabilities'] = i['probabilities']
+
                 region_data.append(temp)
         return region_data
 
