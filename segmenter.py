@@ -16,8 +16,8 @@ class Segmenter:
         self.clf = bf_ridge.BFRidge()
         self.afp = affect_predictor.AffectPredict()
 
-        self.window_duration = 3  # analysis window length in seconds
-        self.sample_rate = 44100  # sample rate
+        self.window_duration = 1.5 # analysis window length in seconds
+        self.sample_rate = 22050  # sample rate
         self.frame_size = 2048  # samples in each frame
         self.hop_size = 1024
         self.window_size = int(self.sample_rate * self.window_duration)
@@ -43,13 +43,13 @@ class Segmenter:
         # # segments = self.max_posterior(segments, self.medianFilter_span)
         # segments = self.median_filtering(segments)
 
-        segments = self.kmeans_clustering(segments, 1, 'fore')
-        segments = self.kmeans_clustering(segments, 1, 'backfore')
-        segments = self.kmeans_clustering(segments, 1, 'back')
+        segments = self.kmeans_clustering(segments, 2, 'fore')
+        segments = self.kmeans_clustering(segments, 2, 'backfore')
+        # segments = self.kmeans_clustering(segments, 1, 'back')
 
         # join segments
         segments = self.conjunction(segments)
-        return segments
+        return segments 
 
     # use the bf classifier to extract background, foreground, bafoground regions
     # returns # [file_path, [['type', start, end], [...], ['type'n, startn, endn]]]

@@ -15,8 +15,8 @@ sample_rate = 22500
 
 def main():
     s1 = Segmenter()
-    # foldername = 'soundstorage'
-    foldername = 'testsound'
+    foldername = 'soundstorage'
+    # foldername = 'testsound'
 
 
     for filename in os.listdir(foldername):
@@ -35,9 +35,9 @@ def main():
     
         # open text file and write label data
         if('.mp3' in filename):
-            labelname = filename.replace('.mp3', '_clusering.txt')
+            labelname = filename.replace('.mp3', '_15clusering.txt')
         elif('.wav' in  filename):
-            labelname = filename.replace('.wav', '_clusering.txt')
+            labelname = filename.replace('.wav', '_15clusering.txt')
         f = open('label_output/' + labelname, 'w')
         f.write(label_string)
         f.close()
