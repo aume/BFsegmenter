@@ -35,9 +35,9 @@ def main():
     
         # open text file and write label data
         if('.mp3' in filename):
-            labelname = filename.replace('.mp3', '_15clusering.txt')
+            labelname = filename.replace('.mp3', '_MPclusering.txt')
         elif('.wav' in  filename):
-            labelname = filename.replace('.wav', '_15clusering.txt')
+            labelname = filename.replace('.wav', '_MPclusering.txt')
         f = open('label_output/' + labelname, 'w')
         f.write(label_string)
         f.close()

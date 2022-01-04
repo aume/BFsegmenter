@@ -39,8 +39,8 @@ class Segmenter:
         # segment filtering
         segments = self.margin_smoothing(segments)
 
-        # # segments = self.smoothProbabilities(segments, self.smoothing_window)
-        # # segments = self.max_posterior(segments, self.medianFilter_span)
+        # segments = self.smooth_probabilities(segments, self.smoothing_window)
+        # segments = self.max_posterior(segments, self.medianFilter_span)
         # segments = self.median_filtering(segments)
 
         segments = self.kmeans_clustering(segments, 2, 'fore')
