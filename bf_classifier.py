@@ -3,7 +3,7 @@ from sklearn.preprocessing import StandardScaler
 import numpy as np
 from sklearn.linear_model import RidgeClassifierCV
 
-class BFRidge(object):
+class BFClassifier(object):
     """
         The famous classier for segmenting audio files into background, 
         foreground, and background with foreground segments

@@ -3,7 +3,6 @@ import bf_classifier
 import bf_classifier
 import affect_predictor
 import numpy as np
-from scipy import ndimage
 from essentia.standard import MonoLoader, FrameGenerator, PoolAggregator
 import essentia
 
@@ -12,8 +11,7 @@ class Segmenter:
     def __init__(self):
 
         # create the models
-        # self.clf = bf_classifier.BFClassifier()
-        self.clf = bf_classifier.BFRidge()
+        self.clf = bf_classifier.BFClassifier()
         self.afp = affect_predictor.AffectPredict()
 
         self.window_duration = 1.5 # analysis window length in seconds
@@ -22,11 +20,6 @@ class Segmenter:
         self.hop_size = 1024
         self.window_size = int(self.sample_rate * self.window_duration)
         self.adjusted_window = (self.window_size // self.frame_size) * self.frame_size
-
-        self.smoothing_window = 1
-        self.median_filter_span = 3
-
-        self.filter_window = 3
 
         # the essentia engine make sure that the features were extracted under the same conditions as the training data
         self.engine = EssentiaEngine(
