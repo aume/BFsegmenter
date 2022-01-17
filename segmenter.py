@@ -34,18 +34,15 @@ class Segmenter:
 
     # run the segmentation
     def segment(self, afile):
+        # extract the regions
         segments = self.extract_regions(afile)
 
-        # segment filtering
+        # smooth unwanted foreground classification on fade in/outs
         segments = self.margin_smoothing(segments)
 
-        # segments = self.smooth_probabilities(segments, self.smoothing_window)
-        # segments = self.max_posterior(segments, self.medianFilter_span)
-        # segments = self.median_filtering(segments)
-
+        # k means clustering
         segments = self.kmeans_clustering(segments, 2, 'fore')
         segments = self.kmeans_clustering(segments, 2, 'backfore')
-        # segments = self.kmeans_clustering(segments, 1, 'back')
 
         # join segments
         segments = self.conjunction(segments)
@@ -196,75 +193,7 @@ class Segmenter:
                 start += 1
         return processed
 
-    def median_filtering(self, segments):
-        if(self.filter_window == 0):
-            return segments
-        import operator
-        filtered = []
-        for i in range(0, len(segments), 1):
-            if (segments[i]['type'] == 'fore'):
-                filtered.append('fore')
-                continue
-            labels = {'fore': 0, 'back': 0, 'backfore': 0}
-            for j in range(max(0, i-self.filter_window), min(i+self.filter_window, len(segments)), 1):
-                k = segments[j]['type']
-                labels[k] = labels[k] + 1
-            maxlabel = max(labels.items(), key=operator.itemgetter(1))[0]
-            filtered.append(maxlabel)
-
-        for i in range(0, len(segments), 1):
-            if segments[i]['type'] != filtered[i]:
-                print(i, 'change', segments[i]['type'])
-                segments[i]['type'] = filtered[i]
-                print(' to ', segments[i]['type'])
-
-        return segments
-
-    # a simple median filtering
-    def max_posterior(self, processed, m_span):
-        import operator
-        medWin = m_span  # int(floor(m_span/2))
-        filtered = []
-        for i in range(0, len(processed), 1):
-            # print(i,'old',processed[i]['type'])
-            # if processed[i]['type'] != processed[i+1]['type']:
-            labels = {'back': 0, 'fore': 0, 'backfore': 0}
-            for j in range(max(0, i-medWin), min(i+medWin, len(processed)), 1):
-                k = processed[j]['type']
-                labels[k] = labels.setdefault(k, 0) + 1
-            maxlabel = max(labels.items(), key=operator.itemgetter(1))[0]
-            filtered.append(maxlabel)
-
-        for i in range(0, len(processed), 1):
-            #print (i,'old',processed[i]['type'])
-            if processed[i]['type'] != filtered[i]:
-                processed[i]['type'] = filtered[i]
-                #print (i,'change',processed[i]['type'])
-
-        return processed
-
-    def smooth_probabilities(self, processed, winSize=200):
-        a = np.array(processed[0]['probabilities'])
-
-        for i in range(0, len(processed), 1):
-            # print processed[i]['probabilities']
-            a = np.vstack((a, processed[i]['probabilities']))
-        # print a
-
-        for i in range(a.shape[1]):
-            a[:, i] = ndimage.filters.median_filter(a[:, i], size=winSize)
-        # print a
-
-        import operator
-        labels = ['fore', 'back', 'backfore']
-        for i in range(0, len(processed), 1):
-            processed[i]['probabilities'] = a[i]
-            index, value = max(enumerate(a[i]), key=operator.itemgetter(1))
-            processed[i]['type'] = labels[index]
-        return processed
-
-        # Here we join up any same labelled adjacent regions
-
+    # Here we join up any same labelled adjacent regions
     def conjunction(self, processed):
         for i in range(1, len(processed), 1):
             if processed[i]['type'] == processed[i-1]['type']:  # if its the same
