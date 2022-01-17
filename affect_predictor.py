@@ -33,11 +33,11 @@ class AffectPredict:
         self.valence_X = [x[self.VALENCE_MASK] for x in self.valence_X]
 
         # create arousal model
-        self.arousal_model = RandomForestRegressor(max_depth=40, min_samples_split=5, oob_score=True)
+        self.arousal_model = RandomForestRegressor(max_depth=20, min_samples_split=5, oob_score=True)
         self.arousal_model.fit(self.arousal_X, self.arousal_y.ravel())
 
         # create valence model
-        self.valence_model = RandomForestRegressor(max_depth=40, oob_score=True)
+        self.valence_model = RandomForestRegressor(max_depth=30, min_samples_leaf=2, min_samples_split=5, oob_score=True)
         self.valence_model.fit(self.valence_X, self.valence_y.ravel())
 
     def predict_valence(self, Z):

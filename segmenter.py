@@ -1,6 +1,6 @@
 from essentia_engine import EssentiaEngine
 import bf_classifier
-import bf_ridge
+import bf_classifier
 import affect_predictor
 import numpy as np
 from scipy import ndimage
@@ -13,7 +13,7 @@ class Segmenter:
 
         # create the models
         # self.clf = bf_classifier.BFClassifier()
-        self.clf = bf_ridge.BFRidge()
+        self.clf = bf_classifier.BFRidge()
         self.afp = affect_predictor.AffectPredict()
 
         self.window_duration = 1.5 # analysis window length in seconds
