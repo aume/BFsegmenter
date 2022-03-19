@@ -39,7 +39,7 @@ class Segmenter:
 
         # join segments
         segments = self.conjunction(segments)
-        return segments 
+        return [afile, segments] 
 
     # use the bf classifier to extract background, foreground, bafoground regions
     # returns # [file_path, [['type', start, end], [...], ['type'n, startn, endn]]]
