@@ -7,6 +7,11 @@ from essentia.standard import MonoLoader, FrameGenerator, PoolAggregator
 import essentia
 
 class Segmenter:
+    """
+    The segmenter uses the Essentia engine to extract features from an audio file, then make predictions on segments using the bf_classifier and affector_predictor models.
+    The input to the segmenter is a path to an audio file and the output is segment information. 
+    """
+
     # initialize
     def __init__(self):
 

@@ -1,14 +1,19 @@
 from segmenter import Segmenter
 import os
 
-# program for testing and tuning segmentation
+"""
+This program is an example implimentation of the segmenter. 
+We pull segment information then create a label file for audacity to visualize the background/foreground assignments.
+"""
+
 sample_rate = 22500
-foldername = 'soundstorage'
+audio_folder = ''
+out_folder = ''
 
 def main():
     s1 = Segmenter()
-    for filename in os.listdir(foldername):
-        path = foldername + '/' + filename
+    for filename in os.listdir(audio_folder):
+        path = audio_folder + '/' + filename
         windowData = s1.segment(path)
         
         label_string = ''
@@ -20,7 +25,7 @@ def main():
             labelname = filename.replace('.mp3', '_MPclusering.txt')
         elif('.wav' in  filename):
             labelname = filename.replace('.wav', '_MPclusering.txt')
-        f = open('label_output/' + labelname, 'w')
+        f = open(out_folder + '/' + labelname, 'w')
         f.write(label_string)
         f.close()
 
