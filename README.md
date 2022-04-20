@@ -1,38 +1,19 @@
-# BFsegmenter
+# BFSegmenter
 
-## Requirements:
+The BFSegmenter segments audio files and classifies each segment as background, foreground, or background with foreground. Additionaly, for each segment the affect is predicted on a scale of valence and arousal.
 
-sklearn
+Example implimentation of the segmenter in *extract_audacity_labels.py*.
 
-numpy
+## Dependancies
+Essentia - an open-source library for tools for audio and music analysis, description, synthesis. https://essentia.upf.edu/ 
 
-matplotlib
+For full requirements, check *requirements.txt*.
 
-sqlite3
+## Authors
 
-Python 2.7 (porting to Python 3 is a task)
+ - Miles Thorogood
+ - Joshua Kranabetter
 
-YAAFE https://github.com/Yaafe/Yaafe
+## License
 
-pydub https://github.com/jiaaro/pydub
-
-## TODO:
-
-port to Python 3
-
-corpusAuquireDir.py
-
-  svnsegmenter.py
-
-  bf_classifier.py
-
-  affect_predictor.py
-
-  yaafeEngine.py
-
-## Running
-python corpusAquireDir.py /path/to/audio/files
-
-audio files are aif or wav
-
-segments the files in the directory and puts the segs into SegmentedCorpus
+This project is licensed under the MIT License - see the *LICENSE* file for details.
