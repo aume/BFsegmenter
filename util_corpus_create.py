@@ -56,9 +56,9 @@ def process_file(file, id):
     if file.endswith('aiff'):
         song = AudioSegment.from_file(file, 'aiff')
     elif file.endswith('wav'):
-        song = AudioSegment.from_file(file, 'wav')
-    elif file.endswith('wav'):
-        song = AudioSegment.from_file(file, 'mp3')
+        song = AudioSegment.from_wav(file)
+    elif file.endswith('mp3'):
+        song = AudioSegment.from_mp3(file)
 
     recregion = song[region['start'] * 1000:region['end'] * 1000]  # cut the region
     awesome = recregion.fade_in(50).fade_out(50)  # fade in/out
