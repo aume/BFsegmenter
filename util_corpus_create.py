@@ -18,11 +18,11 @@ import os
 from pydub import AudioSegment
 import sqlite3 as lite
 
-# connect to the database
-con = lite.connect('./corpus.db')
+# # connect to the database
+# con = lite.connect('./corpus.db')
 
 # audio file regions filtered and trimmed to this duration
-desiredDuration = 4.0
+min_duration = 1.0
 corpusName = 'SegmentedCorpus'  # dir to put segments
 # searchDirectory = sys.argv[1]  # search this directory
 searchDirectory = 'soundfiles'  # search this directory
@@ -37,23 +37,15 @@ if not os.path.exists(corpusName):
 
 # method that segments file
 def process_file(file, id):
-    
-    print('processing file')
 
-    rli = segmenter.segment(file)  # segment the file
+    [file, regions] = segmenter.segment(file)  # segment the file
 
+    # remove regions with duration lower than desired
     candidates = []  # all regions of desired length
-
-    # go through the regions for this file
-    for i in rli[1]:
-        if i[1] >= desiredDuration:
-            if i[1] > desiredDuration + 0.1:  # trim out the middle if its longer
-                diff = i[1] - desiredDuration
-                i[2] = i[2] + diff / 2
-                i[3] = i[3] - diff / 2
-                i[1] = i[3] - i[2]
-            candidates.append(i)
-
+    for region in regions:
+        if region['duration'] >= min_duration:
+            candidates.append(region)
+    
     if len(candidates):  # if there is more than none
         region = choice(candidates)  # choose one regions randomly
         filename = os.path.basename(file)
@@ -80,7 +72,7 @@ def process_file(file, id):
                            format='aiff')  # save to disk
 
             filename = os.path.basename(file)
-            (feats, type) = segmenter.features_only(output_folder + 'r_'
+            (feats, type1) = segmenter.features_only(output_folder + 'r_'
                      + filename)
 
             print('r_' + filename)
@@ -145,10 +137,6 @@ for (root, dirs, files) in os.walk(searchDirectory):
             print(len(path) * '---', root, file)
             process_file(root + '/' + file, fid)
             fid += 1
-
-
-
-
 
 
 # with con:

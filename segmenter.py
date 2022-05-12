@@ -115,22 +115,19 @@ class Segmenter:
             vector = np.array(list(features_dict.values()))
             fnames = np.array(list(features_dict.keys()))
 
-            # filter the features for bf prediction
-            vect_filtered = vector
+            # remove NAN values, this can happen on segments of short length
+            vector = np.nan_to_num(vector)
 
-            # filter the feature dictionary to store only select features
-            fnames_filtered = fnames
-
-            # create filtered dictionary for the database
+            # create clean dictionary for the database
             features_filtered = {}
-            for idx, val in enumerate(vect_filtered):
-                features_filtered[fnames_filtered[idx]] = val
+            for idx, val in enumerate(vector):
+                features_filtered[fnames[idx]] = val
 
             # get the classification
-            classification = types[self.clf.predict(vect_filtered)[0]]
+            classification = types[self.clf.predict(vector)[0]]
 
             # get probabilities
-            probabilities = self.clf.predict_prob(vect_filtered)
+            probabilities = self.clf.predict_prob(vector)
 
             start_time = float(windowCount * self.adjusted_window)/float(self.sample_rate)
             end_time = float((windowCount+1) * self.adjusted_window)/float(self.sample_rate)
@@ -138,7 +135,7 @@ class Segmenter:
             windowCount += 1
 
             processed.append({'type': classification, 'start': start_time,
-                             'end': end_time, 'feats_select': features_filtered, 'vector': vector, 'count': 1, 'probabilities':probabilities})
+                             'end': end_time, 'features': features_filtered, 'vector': vector, 'count': 1, 'probabilities':probabilities})
         return processed
 
     # test method
@@ -196,8 +193,8 @@ class Segmenter:
         for i in range(1, len(processed), 1):
             if processed[i]['type'] == processed[i-1]['type']:  # if its the same
                 processed[i]['start'] = processed[i - 1]['start']  # update the start time
-                processed[i]['feats_select'] = self.sum_feature_dicts(
-                    processed[i]['feats_select'], processed[i-1]['feats_select'])
+                processed[i]['features'] = self.sum_feature_dicts(
+                    processed[i]['features'], processed[i-1]['features'])
                 processed[i]['count'] += processed[i-1]['count']
                 processed[i-1]['type'] = 'none'  # nullify the previos segment
             else:
@@ -215,7 +212,7 @@ class Segmenter:
                 temp['duration'] = i['end'] - i['start']  # duration
                 temp['start'] = i['start']
                 temp['end'] = i['end']
-                temp['feats_select'] = self.avg_dict_items(i['feats_select'], i['count'])
+                temp['features'] = self.avg_dict_items(i['features'], i['count'])
 
                 # unpack features and apply masks for valence and arousal
                 arousal_vect = i['vector'][self.afp.AROUSAL_MASK]
