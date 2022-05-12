@@ -54,15 +54,18 @@ def process_file(file, id):
 
     # open the audio file
     if file.endswith('aiff'):
+        format = 'aiff'
         song = AudioSegment.from_file(file, 'aiff')
     elif file.endswith('wav'):
+        format = 'wav'
         song = AudioSegment.from_wav(file)
     elif file.endswith('mp3'):
+        format = 'mp3'
         song = AudioSegment.from_mp3(file)
 
     recregion = song[region['start'] * 1000:region['end'] * 1000]  # cut the region
     awesome = recregion.fade_in(50).fade_out(50)  # fade in/out
-    awesome.export(output_folder + 'r_' + filename, format='aiff')  # save to disk
+    awesome.export(output_folder + 'r_' + filename, format=format)  # save to disk
 
     filename = os.path.basename(file)
 

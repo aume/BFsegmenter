@@ -9,7 +9,3 @@ venv/
 ENV/
 env.bak/
 venv.bak/
-
-# Testing corpus
-BF200Corpus/
-BF90Corpus/
