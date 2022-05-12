@@ -36,6 +36,8 @@ if not os.path.exists(corpusName):
     os.makedirs(corpusName)
 
 # method that segments file
+
+
 def process_file(file, id):
 
     [file, regions] = segmenter.segment(file)  # segment the file
@@ -45,69 +47,57 @@ def process_file(file, id):
     for region in regions:
         if region['duration'] >= min_duration:
             candidates.append(region)
-    
+
     if len(candidates):  # if there is more than none
         region = choice(candidates)  # choose one regions randomly
         filename = os.path.basename(file)
 
-        good = True
+    # open the audio file
+    if file.endswith('aiff'):
+        song = AudioSegment.from_file(file, 'aiff')
+    elif file.endswith('wav'):
+        song = AudioSegment.from_file(file, 'wav')
+    elif file.endswith('wav'):
+        song = AudioSegment.from_file(file, 'mp3')
 
-        try:
-            song = AudioSegment.from_file(file, 'aiff')  # open the file
-        except EOFError:
+        recregion = song[region[2] * 1000:region[3] * 1000]  # cut the region
+        awesome = recregion.fade_in(50).fade_out(50)  # fade in/out
+        awesome.export(output_folder + 'r_' + filename, format='aiff')  # save to disk
 
-            # good = False
+        filename = os.path.basename(file)
+        (feats, type1) = segmenter.features_only(output_folder + 'r_' + filename)
 
-            print('Maybe wav')
-            try:
-                song = AudioSegment.from_file(file, 'wav')  # open the file
-            except EOFError:
-                good = False
-                print('BAD')
+        print('r_' + filename)
+        print(region[1])
+        print(region[0])
+        # print('Loud Mean = ' + str(feats[0]))
+        # print('Loud Std = ' + str(feats[1]))
+        # print('MFCC1 Mean = ' + str(feats[2]))
+        # print('MFCC1 Std = ' + str(feats[3]))
+        # print('MFCC2 Mean = ' + str(feats[4]))
+        # print('MFCC2 Std = ' + str(feats[5]))
+        # print('MFCC3 Mean = ' + str(feats[6]))
+        # print('MFCC3 Std = ' + str(feats[7]))
 
-        if good:
-            recregion = song[region[2] * 1000:region[3] * 1000]  # cut the region
-            awesome = recregion.fade_in(50).fade_out(50)  # fade in/out
-            awesome.export(output_folder + 'r_' + filename,
-                           format='aiff')  # save to disk
-
-            filename = os.path.basename(file)
-            (feats, type1) = segmenter.features_only(output_folder + 'r_'
-                     + filename)
-
-            print('r_' + filename)
-            print(region[1])
-            print(region[0])
-            # print('Loud Mean = ' + str(feats[0]))
-            # print('Loud Std = ' + str(feats[1]))
-            # print('MFCC1 Mean = ' + str(feats[2]))
-            # print('MFCC1 Std = ' + str(feats[3]))
-            # print('MFCC2 Mean = ' + str(feats[4]))
-            # print('MFCC2 Std = ' + str(feats[5]))
-            # print('MFCC3 Mean = ' + str(feats[6]))
-            # print('MFCC3 Std = ' + str(feats[7]))
-
-            # # save the data entry id, name, duration, class, features
-            # with con:
-            #     try:
-            #         cur.execute('INSERT INTO ' + corpusName
-            #                     + ' (FsID, FileName, Duration, Class, Loud_Mean, Loud_Std,MFCC1_Mean, MFCC1_Std, MFCC2_Mean, MFCC2_Std, MFCC3_Mean, MFCC3_Std) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-            #                     , (
-            #             id,
-            #             'r_' + filename,
-            #             desiredDuration,
-            #             region[0],
-            #             feats[0],
-            #             feats[1],
-            #             feats[2],
-            #             feats[3],
-            #             feats[4],
-            #             feats[5],
-            #             feats[6],
-            #             feats[7],
-            #             ))
-            #     except:
-            #         print('not inserted')
+        # # save the data entry id, name, duration, class, features
+        # with con:
+        #     try:
+        #         cur.execute('INSERT INTO ' + corpusName
+        #                     + ' (FsID, FileName, Duration, Class, Loud_Mean, Loud_Std,MFCC1_Mean, MFCC1_Std, MFCC2_Mean, MFCC2_Std, MFCC3_Mean, MFCC3_Std) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        #                     , (
+        #             id,
+        #             'r_' + filename,
+        #             desiredDuration,
+        #             region[0],
+        #             feats[2],
+        #             feats[3],
+        #             feats[4],
+        #             feats[5],
+        #             feats[6],
+        #             feats[7],
+        #             ))
+        #     except:
+        #         print('not inserted')
 
 
 # make a new table to store all the data
@@ -123,8 +113,6 @@ def process_file(file, id):
 # process_file("/Users/timmy/Desktop/temp/batchtest/3288_2518-hq.aiff")
 
 
-
-
 fid = 0
 for (root, dirs, files) in os.walk(searchDirectory):
     path = root.split('/')
@@ -133,7 +121,7 @@ for (root, dirs, files) in os.walk(searchDirectory):
 
     for file in files:
         if file.endswith('.aif') or file.endswith('.aiff') \
-            or file.endswith('.wav'):
+                or file.endswith('.wav'):
             print(len(path) * '---', root, file)
             process_file(root + '/' + file, fid)
             fid += 1
