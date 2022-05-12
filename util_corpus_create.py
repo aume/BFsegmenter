@@ -60,44 +60,41 @@ def process_file(file, id):
     elif file.endswith('wav'):
         song = AudioSegment.from_file(file, 'mp3')
 
-        recregion = song[region[2] * 1000:region[3] * 1000]  # cut the region
-        awesome = recregion.fade_in(50).fade_out(50)  # fade in/out
-        awesome.export(output_folder + 'r_' + filename, format='aiff')  # save to disk
+    recregion = song[region['start'] * 1000:region['end'] * 1000]  # cut the region
+    awesome = recregion.fade_in(50).fade_out(50)  # fade in/out
+    awesome.export(output_folder + 'r_' + filename, format='aiff')  # save to disk
 
-        filename = os.path.basename(file)
-        (feats, type1) = segmenter.features_only(output_folder + 'r_' + filename)
+    filename = os.path.basename(file)
 
-        print('r_' + filename)
-        print(region[1])
-        print(region[0])
-        # print('Loud Mean = ' + str(feats[0]))
-        # print('Loud Std = ' + str(feats[1]))
-        # print('MFCC1 Mean = ' + str(feats[2]))
-        # print('MFCC1 Std = ' + str(feats[3]))
-        # print('MFCC2 Mean = ' + str(feats[4]))
-        # print('MFCC2 Std = ' + str(feats[5]))
-        # print('MFCC3 Mean = ' + str(feats[6]))
-        # print('MFCC3 Std = ' + str(feats[7]))
+    print('r_' + filename)
+    # print('Loud Mean = ' + str(feats[0]))
+    # print('Loud Std = ' + str(feats[1]))
+    # print('MFCC1 Mean = ' + str(feats[2]))
+    # print('MFCC1 Std = ' + str(feats[3]))
+    # print('MFCC2 Mean = ' + str(feats[4]))
+    # print('MFCC2 Std = ' + str(feats[5]))
+    # print('MFCC3 Mean = ' + str(feats[6]))
+    # print('MFCC3 Std = ' + str(feats[7]))
 
-        # # save the data entry id, name, duration, class, features
-        # with con:
-        #     try:
-        #         cur.execute('INSERT INTO ' + corpusName
-        #                     + ' (FsID, FileName, Duration, Class, Loud_Mean, Loud_Std,MFCC1_Mean, MFCC1_Std, MFCC2_Mean, MFCC2_Std, MFCC3_Mean, MFCC3_Std) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        #                     , (
-        #             id,
-        #             'r_' + filename,
-        #             desiredDuration,
-        #             region[0],
-        #             feats[2],
-        #             feats[3],
-        #             feats[4],
-        #             feats[5],
-        #             feats[6],
-        #             feats[7],
-        #             ))
-        #     except:
-        #         print('not inserted')
+    # # save the data entry id, name, duration, class, features
+    # with con:
+    #     try:
+    #         cur.execute('INSERT INTO ' + corpusName
+    #                     + ' (FsID, FileName, Duration, Class, Loud_Mean, Loud_Std,MFCC1_Mean, MFCC1_Std, MFCC2_Mean, MFCC2_Std, MFCC3_Mean, MFCC3_Std) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    #                     , (
+    #             id,
+    #             'r_' + filename,
+    #             desiredDuration,
+    #             region[0],
+    #             feats[2],
+    #             feats[3],
+    #             feats[4],
+    #             feats[5],
+    #             feats[6],
+    #             feats[7],
+    #             ))
+    #     except:
+    #         print('not inserted')
 
 
 # make a new table to store all the data
@@ -120,8 +117,7 @@ for (root, dirs, files) in os.walk(searchDirectory):
     # print((len(path) - 1) *'---' , os.path.basename(root)
 
     for file in files:
-        if file.endswith('.aif') or file.endswith('.aiff') \
-                or file.endswith('.wav'):
+        if file.endswith('.aif') or file.endswith('.aiff') or file.endswith('.wav') or file.endswith('.mp3'):
             print(len(path) * '---', root, file)
             process_file(root + '/' + file, fid)
             fid += 1
